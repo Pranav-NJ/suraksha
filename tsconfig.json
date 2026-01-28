@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["./shared/*"],
+      "@/*": ["./client/src/*"]
+    }
+  },
+  "include": [
+    "server/**/*.ts",
+    "server/**/*.d.ts",
+    "shared/**/*.ts",
+    "shared/**/*.d.ts",
+    "client/src/**/*.ts",
+    "client/src/**/*.tsx",
+    "client/src/**/*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

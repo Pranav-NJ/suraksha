@@ -1,0 +1,83 @@
+# Sakhi Suraksha API Tests
+# Use REST Client extension in VS Code or copy to Postman
+
+### 1. Health Check
+GET http://localhost:5000/health
+
+### 2. API Info
+GET http://localhost:5000/
+
+### 3. Send OTP
+POST http://localhost:5000/api/auth/send-otp
+Content-Type: application/json
+
+{
+  "phoneNumber": "+919876543210"
+}
+
+### 4. Verify OTP (use the OTP from console logs)
+POST http://localhost:5000/api/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phoneNumber": "+919876543210",
+  "otp": "123456"
+}
+
+### 5. Create User Profile (replace TOKEN with JWT from verify-otp response)
+POST http://localhost:5000/api/user/profile
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Test User",
+  "phoneNumber": "+919876543210",
+  "emergencyMessage": "I need help!",
+  "voiceActivationEnabled": true
+}
+
+### 6. Trigger Emergency Alert
+POST http://localhost:5000/api/emergency-alerts
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "latitude": 28.6139,
+  "longitude": 77.2090,
+  "triggerType": "manual"
+}
+
+### 7. Get Emergency Alerts
+GET http://localhost:5000/api/emergency-alerts
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### 8. Add Emergency Contact
+POST http://localhost:5000/api/emergency-contacts
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Mom",
+  "phoneNumber": "+919876543211",
+  "email": "mom@example.com",
+  "relationship": "mother",
+  "isPrimary": true,
+  "canReceiveSMS": true,
+  "canReceiveWhatsApp": true,
+  "canReceiveCall": true
+}
+
+### 9. Update Location
+POST http://localhost:5000/api/location/update
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "latitude": 28.6139,
+  "longitude": 77.2090,
+  "accuracy": 10
+}
+
+### 10. Get Latest Location
+GET http://localhost:5000/api/location/latest
+Authorization: Bearer YOUR_TOKEN_HERE

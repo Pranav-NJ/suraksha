@@ -1,0 +1,10 @@
+{
+  "name": "drizzle-config",
+  "dialect": "postgresql",
+  "schema": "./shared/schema.ts",
+  "out": "./server/db/migrations",
+  "driver": "pg",
+  "dbCredentials": {
+    "connectionString": "postgresql://postgres:password@localhost:5432/sakhi_suraksha"
+  }
+}

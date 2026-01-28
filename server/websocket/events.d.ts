@@ -1,0 +1,1 @@
+export function broadcastEmergencyAlert(...args: any[]): void;
