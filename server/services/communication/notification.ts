@@ -1,6 +1,6 @@
 import smsService from './sms.js';
 import whatsappService from './whatsapp.js';
-import { EmergencyContact } from '@shared/schema';
+import { type EmergencyContact } from '../../db/schema';
 
 export interface NotificationResult {
   sms: { success: number; failed: number };
@@ -135,7 +135,7 @@ export class NotificationService {
     location: { latitude: number; longitude: number; address?: string }
   ): string {
     const mapsUrl = `https://maps.google.com/?q=${location.latitude},${location.longitude}`;
-    
+
     return `🚨 EMERGENCY ALERT from Sakhi Suraksha
 
 ${userName} needs IMMEDIATE HELP!

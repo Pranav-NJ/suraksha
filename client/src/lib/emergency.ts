@@ -1,5 +1,5 @@
 import { apiRequest } from "./queryClient";
-import type { InsertEmergencyAlert } from "@shared/schema";
+import type { InsertEmergencyAlert } from "@/lib/validation";
 
 export async function triggerEmergencyProtocol(alertData: InsertEmergencyAlert) {
   try {
@@ -43,12 +43,12 @@ export async function sendSMSAlert(phoneNumber: string, message: string) {
 
 export function generateEmergencyMessage(location?: { latitude: number; longitude: number }) {
   const baseMessage = "🚨 EMERGENCY ALERT 🚨\n\nI need immediate help. This is an automated message from Sakhi Suraksha app.";
-  
+
   if (location) {
     const mapsUrl = `https://maps.google.com/?q=${location.latitude},${location.longitude}`;
     return `${baseMessage}\n\nMy location: ${mapsUrl}\n\nTime: ${new Date().toLocaleString()}`;
   }
-  
+
   return `${baseMessage}\n\nLocation unavailable\n\nTime: ${new Date().toLocaleString()}`;
 }
 

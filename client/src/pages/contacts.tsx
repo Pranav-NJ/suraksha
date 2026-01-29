@@ -12,7 +12,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertEmergencyContactSchema, type EmergencyContact, type InsertEmergencyContact } from "@shared/schema";
+import { insertEmergencyContactSchema, type EmergencyContact, type InsertEmergencyContact } from "@/lib/validation";
 import { useState } from "react";
 import SimpleFamilyQR from "@/components/simple-family-qr";
 
@@ -21,7 +21,7 @@ export default function Contacts() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<EmergencyContact | null>(null);
   const [selectedCountryCode, setSelectedCountryCode] = useState("+91");
-  
+
   // Fetch emergency contacts
   const { data: contacts = [], isLoading } = useQuery<EmergencyContact[]>({
     queryKey: ["/api/emergency-contacts"],
@@ -49,12 +49,12 @@ export default function Contacts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to create contact');
       }
-      
+
       return response.json();
     },
     onSuccess: (newContact) => {
@@ -93,12 +93,12 @@ export default function Contacts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update contact');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -126,12 +126,12 @@ export default function Contacts() {
       const response = await fetch(`/api/emergency-contacts/${id}`, {
         method: "DELETE"
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to delete contact');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -152,13 +152,13 @@ export default function Contacts() {
 
   const openEditDialog = (contact: EmergencyContact) => {
     setEditingContact(contact);
-    
+
     // Extract country code from phone number
     const phoneWithoutCode = contact.phoneNumber?.replace(/^\+\d{1,3}/, '') || '';
     const countryCode = contact.phoneNumber?.match(/^\+\d{1,3}/)?.[0] || '+91';
-    
+
     setSelectedCountryCode(countryCode);
-    
+
     form.reset({
       name: contact.name || '',
       phoneNumber: phoneWithoutCode,
@@ -174,7 +174,7 @@ export default function Contacts() {
     try {
       console.log('Form submitted with data:', data);
       console.log('Form errors:', form.formState.errors);
-      
+
       const fullPhoneNumber = selectedCountryCode + data.phoneNumber.replace(/\D/g, '');
       const contactData = {
         ...data,
@@ -185,9 +185,9 @@ export default function Contacts() {
       console.log('Submitting contact data:', contactData);
 
       if (editingContact) {
-        updateContactMutation.mutate({ 
-          id: editingContact.id, 
-          data: contactData 
+        updateContactMutation.mutate({
+          id: editingContact.id,
+          data: contactData
         });
       } else {
         createContactMutation.mutate(contactData);
@@ -252,7 +252,7 @@ export default function Contacts() {
           <CardContent className="p-6">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
+                <Button
                   className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                   onClick={() => {
                     setEditingContact(null);
@@ -264,14 +264,14 @@ export default function Contacts() {
                   Add Emergency Contact
                 </Button>
               </DialogTrigger>
-              
+
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>
                     {editingContact ? "Edit Contact" : "Add Emergency Contact"}
                   </DialogTitle>
                 </DialogHeader>
-                
+
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                     <FormField
@@ -281,9 +281,9 @@ export default function Contacts() {
                         <FormItem>
                           <FormLabel>Full Name</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Enter contact's full name" 
-                              {...field} 
+                            <Input
+                              placeholder="Enter contact's full name"
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -298,8 +298,8 @@ export default function Contacts() {
                         <FormItem>
                           <FormLabel>Phone Number</FormLabel>
                           <div className="flex gap-2">
-                            <Select 
-                              value={selectedCountryCode} 
+                            <Select
+                              value={selectedCountryCode}
                               onValueChange={setSelectedCountryCode}
                             >
                               <SelectTrigger className="w-24">
@@ -319,8 +319,8 @@ export default function Contacts() {
                               </SelectContent>
                             </Select>
                             <FormControl>
-                              <Input 
-                                placeholder="9876543210" 
+                              <Input
+                                placeholder="9876543210"
                                 {...field}
                                 onChange={(e) => {
                                   const cleanNumber = e.target.value.replace(/\D/g, '');
@@ -430,10 +430,10 @@ export default function Contacts() {
                         disabled={createContactMutation.isPending || updateContactMutation.isPending}
                         className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                       >
-                        {(createContactMutation.isPending || updateContactMutation.isPending) 
-                          ? "Saving..." 
-                          : editingContact 
-                            ? "Update Contact" 
+                        {(createContactMutation.isPending || updateContactMutation.isPending)
+                          ? "Saving..."
+                          : editingContact
+                            ? "Update Contact"
                             : "Add Contact"
                         }
                       </Button>
@@ -473,7 +473,7 @@ export default function Contacts() {
                               Primary
                             </Badge>
                           )}
-                          <Badge 
+                          <Badge
                             variant={contact.isActive ? "secondary" : "outline"}
                             className={contact.isActive ? "bg-green-100 text-green-800" : ""}
                           >

@@ -12,7 +12,7 @@ import { useVoiceRecognition } from "@/hooks/use-voice-recognition";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import type { EmergencyContact, HomeLocation, User as UserType } from "@shared/schema";
+import type { EmergencyContact, HomeLocation, User as UserType } from "@/lib/validation";
 import { formatDistanceToNow } from "date-fns";
 import { userSession } from "@/lib/userSession";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,8 @@ export default function Home() {
   const { toast } = useToast();
   const [autoStartStream, setAutoStartStream] = useState(false);
   const [isVoiceDetectionActive, setIsVoiceDetectionActive] = useState(false);
-  const [voiceDetectionScenario, setVoiceDetectionScenario] = useState<{triggerType: string, scenario: string, detectedText: string} | null>(null);
-  
+  const [voiceDetectionScenario, setVoiceDetectionScenario] = useState<{ triggerType: string, scenario: string, detectedText: string } | null>(null);
+
   const { data: user } = useQuery<UserType>({
     queryKey: ["/api/user/profile"],
     queryFn: async () => {
@@ -75,7 +75,7 @@ export default function Home() {
         ) : (
           <p className="text-gray-600 text-lg">Your safety companion</p>
         )}
-        
+
         {/* All Systems Active Badge */}
         <div className="flex items-center mt-4 px-4 py-2 bg-green-100 rounded-full">
           <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
@@ -92,7 +92,7 @@ export default function Home() {
               <Shield className="w-6 h-6 text-green-600 mr-3" />
               <h2 className="text-xl font-semibold text-gray-800">Safety Status</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 font-medium">Location Status</span>
@@ -100,19 +100,19 @@ export default function Home() {
                   Safe Zone: Home
                 </Badge>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 font-medium">Emergency Contacts</span>
                 <span className="text-gray-600 font-medium">{emergencyContacts.length} contacts</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 font-medium">Voice Recognition</span>
                 <Badge className={isVoiceDetectionActive ? "bg-green-100 text-green-700 border-green-300" : "bg-gray-100 text-gray-700 border-gray-300"}>
                   {isVoiceDetectionActive ? "Active" : "Inactive"}
                 </Badge>
               </div>
-              
+
               <div className="flex items-center text-sm text-gray-500 mt-4">
                 <Clock className="w-4 h-4 mr-2" />
                 <span>Last updated {lastUpdated} ago</span>
@@ -135,13 +135,13 @@ export default function Home() {
               }}
             />
           </div>
-          
+
           {/* Voice Distress Detection */}
           <div className="mb-6">
-            <PersistentVoiceDetector 
+            <PersistentVoiceDetector
               onEmergencyDetected={async (triggerType, scenario, detectedText) => {
                 console.log('Voice emergency triggered:', triggerType, scenario);
-                
+
                 try {
                   // Get current location
                   const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -153,7 +153,7 @@ export default function Home() {
                   });
 
                   const { latitude, longitude } = position.coords;
-                  
+
                   // Create emergency alert via API
                   const response = await fetch('/api/emergency-alerts', {
                     method: 'POST',
@@ -174,10 +174,10 @@ export default function Home() {
                   if (response.ok) {
                     const alert = await response.json();
                     console.log('Voice emergency alert created:', alert.id);
-                    
+
                     setVoiceDetectionScenario({ triggerType, scenario, detectedText });
                     setAutoStartStream(true);
-                    
+
                     toast({
                       title: "Voice Emergency Alert Created",
                       description: "Emergency contacts notified and parent dashboard updated",
@@ -186,10 +186,10 @@ export default function Home() {
                   } else {
                     throw new Error('Failed to create emergency alert');
                   }
-                  
+
                 } catch (error) {
                   console.error('Emergency alert creation failed:', error);
-                  
+
                   // Fallback without location
                   const response = await fetch('/api/emergency-alerts', {
                     method: 'POST',
@@ -210,7 +210,7 @@ export default function Home() {
                   if (response.ok) {
                     const alert = await response.json();
                     console.log('Voice emergency alert created (fallback):', alert.id);
-                    
+
                     setVoiceDetectionScenario({ triggerType, scenario, detectedText });
                     setAutoStartStream(true);
                   }
@@ -223,7 +223,7 @@ export default function Home() {
 
           {/* Live Streaming Component */}
           <div className="mb-6">
-            <LiveStreaming 
+            <LiveStreaming
               autoStart={autoStartStream}
               onStreamStarted={(streamUrl) => {
                 console.log('Live stream started:', streamUrl);
@@ -248,7 +248,7 @@ export default function Home() {
               View Full Map & Safe Routes
             </Button>
           </Link>
-          
+
           <Link href="/contacts">
             <Button variant="outline" className="w-full border-purple-200 text-purple-600 hover:bg-purple-50 py-3">
               Manage Emergency Contacts
@@ -377,7 +377,7 @@ export default function Home() {
                 <span>Community safety alerts and real-time notifications</span>
               </p>
             </div>
-            
+
             <div className="mt-4 p-3 bg-green-100 rounded-lg">
               <p className="text-sm text-green-800 font-medium">
                 Your safety is our priority. Stay connected, stay safe.
@@ -399,7 +399,7 @@ export default function Home() {
                   Monitor your child's safety status and receive emergency alerts in real-time
                 </p>
               </div>
-              <Button 
+              <Button
                 onClick={() => window.open('/parent-dashboard', '_blank')}
                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
               >

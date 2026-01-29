@@ -1,5 +1,5 @@
 import db from '../../config/db.js';
-import { emergencyAlerts, emergencyContacts, users, locationTracking } from '@shared/schema';
+import { emergencyAlerts, emergencyContacts, users, locationTracking } from '../../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import notificationService from '../communication/notification.js';
 import { broadcastEmergencyAlert } from '../../websocket/events.js';
@@ -43,10 +43,10 @@ export class EmergencyCoordinator {
       await Promise.all([
         // 3a: Send notifications to all contacts
         this.sendNotifications(user, contacts, trigger),
-        
+
         // 3b: Start location tracking
         this.startLocationTracking(trigger.userId, alert.id),
-        
+
         // 3c: Broadcast to family dashboard via WebSocket
         this.broadcastToFamily(trigger.userId, alert),
       ]);

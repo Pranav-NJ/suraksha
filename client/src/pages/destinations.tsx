@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertDestinationSchema, type InsertDestination } from "@shared/schema";
+import { insertDestinationSchema, type InsertDestination } from "@/lib/validation";
 import { MapPin, Plus, Navigation, Clock, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -137,7 +137,7 @@ export default function Destinations() {
           <h1 className="text-2xl font-bold text-gray-900">Safe Destinations</h1>
           <p className="text-gray-600">Manage your frequently visited safe places</p>
         </div>
-        
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-blue-500 to-purple-600">
@@ -164,7 +164,7 @@ export default function Destinations() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="address"
@@ -187,9 +187,9 @@ export default function Destinations() {
                       <FormItem>
                         <FormLabel>Latitude</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            step="any" 
+                          <Input
+                            type="number"
+                            step="any"
                             placeholder="0.000000"
                             {...field}
                             onChange={(e) => field.onChange(parseFloat(e.target.value))}
@@ -199,7 +199,7 @@ export default function Destinations() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="longitude"
@@ -207,9 +207,9 @@ export default function Destinations() {
                       <FormItem>
                         <FormLabel>Longitude</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            step="any" 
+                          <Input
+                            type="number"
+                            step="any"
                             placeholder="0.000000"
                             {...field}
                             onChange={(e) => field.onChange(parseFloat(e.target.value))}
@@ -221,9 +221,9 @@ export default function Destinations() {
                   />
                 </div>
 
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={getCurrentLocation}
                   className="w-full"
                 >
@@ -262,7 +262,7 @@ export default function Destinations() {
             <p className="text-gray-600 mb-4">
               Add your frequently visited safe places for quick navigation
             </p>
-            <Button 
+            <Button
               onClick={() => setIsDialogOpen(true)}
               className="bg-gradient-to-r from-blue-500 to-purple-600"
             >

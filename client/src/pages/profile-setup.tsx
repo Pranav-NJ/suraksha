@@ -11,17 +11,17 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { upsertUserSchema, type UpsertUser, type User } from "@shared/schema";
+import { upsertUserSchema, type UpsertUser, type User } from "@/lib/validation";
 import OTPVerification from "@/components/otp-verification";
 import { userSession } from "@/lib/userSession";
 import { LocalProfile } from "@/lib/localProfile";
-import { 
-  User as UserIcon, 
-  Mail, 
-  Phone, 
-  Shield, 
-  Check, 
-  X, 
+import {
+  User as UserIcon,
+  Mail,
+  Phone,
+  Shield,
+  Check,
+  X,
   ArrowRight,
   UserCheck
 } from "lucide-react";
@@ -63,29 +63,29 @@ export default function ProfileSetup() {
   const saveProfileMutation = useMutation({
     mutationFn: async (data: UpsertUser) => {
       console.log('Saving profile to database with data:', data);
-      
+
       // Add user ID from session for multi-user support
       const userId = userSession.getUserId();
       const profileData = { ...data, id: userId };
-      
+
       const response = await fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Database save error:', errorData);
         throw new Error(errorData.message || 'Failed to save profile to database');
       }
-      
+
       const result = await response.json();
       console.log('Profile saved to database:', result);
-      
+
       // Also save to localStorage as backup
       LocalProfile.save(profileData);
-      
+
       return result;
     },
     onSuccess: (data) => {
@@ -113,12 +113,12 @@ export default function ProfileSetup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to send email OTP');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -144,12 +144,12 @@ export default function ProfileSetup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to send phone OTP');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -175,12 +175,12 @@ export default function ProfileSetup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Invalid OTP');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -208,12 +208,12 @@ export default function ProfileSetup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, otp })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Invalid OTP');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -239,7 +239,7 @@ export default function ProfileSetup() {
     queryFn: async () => {
       console.log('Loading profile from database...');
       const userId = userSession.getUserId();
-      
+
       try {
         const response = await fetch(`/api/user/profile?userId=${userId}`);
         if (response.ok) {
@@ -273,7 +273,7 @@ export default function ProfileSetup() {
         emergencyMessage: existingProfile.emergencyMessage || "🚨 EMERGENCY ALERT 🚨\nI need immediate help! This is an automated SOS from Sakhi Suraksha app.\n\nLocation: [LIVE_LOCATION]\nTime: [TIMESTAMP]\nLive Stream: [STREAM_LINK]\n\nPlease contact me immediately or call emergency services.",
         countryCode: "+91"
       });
-      
+
       // If profile exists, mark as verified
       if (existingProfile.phoneNumber) setIsPhoneVerified(true);
       if (existingProfile.firstName && existingProfile.lastName && existingProfile.phoneNumber) {
@@ -284,7 +284,7 @@ export default function ProfileSetup() {
 
   const handleBasicInfoSubmit = (data: ProfileSetupData) => {
     const userId = userSession.getUserId();
-    
+
     // Save basic profile data with unique user ID
     const profileData: UpsertUser = {
       id: userId,
@@ -297,7 +297,7 @@ export default function ProfileSetup() {
 
     setCurrentEmail(data.email || '');
     setCurrentPhone(selectedCountryCode + (data.phoneNumber || '').replace(/\D/g, ''));
-    
+
     saveProfileMutation.mutate(profileData);
     setStep(2); // Move to phone verification
   };
@@ -366,8 +366,8 @@ export default function ProfileSetup() {
             <FormItem>
               <FormLabel>Phone Number</FormLabel>
               <div className="flex gap-2">
-                <Select 
-                  value={selectedCountryCode} 
+                <Select
+                  value={selectedCountryCode}
                   onValueChange={setSelectedCountryCode}
                 >
                   <SelectTrigger className="w-24">
@@ -387,8 +387,8 @@ export default function ProfileSetup() {
                   </SelectContent>
                 </Select>
                 <FormControl>
-                  <Input 
-                    placeholder="9876543210" 
+                  <Input
+                    placeholder="9876543210"
                     {...field}
                     value={field.value ?? ""}
                     onChange={(e) => {
@@ -411,7 +411,7 @@ export default function ProfileSetup() {
             <FormItem>
               <FormLabel>Emergency Message Template</FormLabel>
               <FormControl>
-                <Textarea 
+                <Textarea
                   placeholder="Custom message sent during emergencies"
                   rows={4}
                   {...field}
@@ -443,7 +443,7 @@ export default function ProfileSetup() {
           Verify your phone number to secure your account
         </p>
       </div>
-      
+
       <OTPVerification
         identifier={currentPhone}
         type="phone"
@@ -487,22 +487,21 @@ export default function ProfileSetup() {
             </div>
             <CardTitle className="text-2xl">Profile Setup</CardTitle>
             <p className="text-gray-600">Secure your account with verified contact information</p>
-            
+
             {/* Progress Indicator */}
             <div className="flex justify-center space-x-2 mt-4">
               {[1, 2, 3].map((stepNumber) => (
                 <div
                   key={stepNumber}
-                  className={`w-3 h-3 rounded-full ${
-                    stepNumber <= step
+                  className={`w-3 h-3 rounded-full ${stepNumber <= step
                       ? 'bg-orange-500'
                       : 'bg-gray-200'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
           </CardHeader>
-          
+
           <CardContent>
             {step === 1 && renderStep1()}
             {step === 2 && renderStep2()}

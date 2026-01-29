@@ -3,7 +3,7 @@ import corenlpService from './corenlp.js';
 import llamaService from './llama.js';
 import { config } from '../../config/env.js';
 import db from '../../config/db.js';
-import { voicePatterns } from '@shared/schema';
+import { voicePatterns } from '../../db/schema';
 
 export interface VoiceDetectionResult {
   isEmergency: boolean;

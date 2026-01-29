@@ -12,15 +12,15 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertIotDeviceSchema, type IotDevice, type InsertIotDevice } from "@shared/schema";
-import { 
-  Watch, 
-  Smartphone, 
-  Heart, 
-  Activity, 
-  Battery, 
-  Bluetooth, 
-  BluetoothConnected, 
+import { insertIotDeviceSchema, type IotDevice, type InsertIotDevice } from "@/lib/validation";
+import {
+  Watch,
+  Smartphone,
+  Heart,
+  Activity,
+  Battery,
+  Bluetooth,
+  BluetoothConnected,
   BluetoothSearching,
   Plus,
   Settings,
@@ -80,12 +80,12 @@ export default function IoTDeviceManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to add device');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -112,11 +112,11 @@ export default function IoTDeviceManager() {
       const response = await fetch(`/api/iot-devices/${deviceId}/connect`, {
         method: "POST"
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to connect device');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -141,11 +141,11 @@ export default function IoTDeviceManager() {
       const response = await fetch(`/api/iot-devices/${deviceId}/disconnect`, {
         method: "POST"
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to disconnect device');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -170,11 +170,11 @@ export default function IoTDeviceManager() {
       const response = await fetch(`/api/iot-devices/${deviceId}`, {
         method: "DELETE"
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to delete device');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -237,14 +237,14 @@ export default function IoTDeviceManager() {
 
         setBluetoothDevices(prev => [...prev, bluetoothDevice]);
         setSelectedBluetoothDevice(bluetoothDevice);
-        
+
         // Try to connect and read device information
         try {
           if (device.gatt) {
             const server = await device.gatt.connect();
             let batteryLevel = 100; // Default
             let firmwareVersion = "1.0.0"; // Default
-            
+
             // Try to read battery level
             try {
               const batteryService = await server.getPrimaryService('battery_service');
@@ -255,7 +255,7 @@ export default function IoTDeviceManager() {
             } catch (batteryError) {
               console.log('Battery service not available for', device.name);
             }
-            
+
             // Try to read device information
             try {
               const deviceInfoService = await server.getPrimaryService('device_information');
@@ -265,7 +265,7 @@ export default function IoTDeviceManager() {
             } catch (firmwareError) {
               console.log('Device info service not available for', device.name);
             }
-            
+
             // Pre-fill form with real device information
             form.setValue('deviceName', bluetoothDevice.name ?? 'Unknown Device');
             form.setValue('bluetoothId', bluetoothDevice.id);
@@ -273,7 +273,7 @@ export default function IoTDeviceManager() {
             form.setValue('firmwareVersion', firmwareVersion);
             form.setValue('isConnected', true);
             form.setValue('connectionStatus', 'connected');
-            
+
             toast({
               title: "Device Connected",
               description: `Connected to ${bluetoothDevice.name}. Battery: ${batteryLevel}%`,
@@ -284,7 +284,7 @@ export default function IoTDeviceManager() {
           // Pre-fill form with basic device information
           form.setValue('deviceName', bluetoothDevice.name ?? 'Unknown Device');
           form.setValue('bluetoothId', bluetoothDevice.id);
-          
+
           toast({
             title: "Device Found",
             description: `Found ${bluetoothDevice.name}. Ready to add to your devices.`,
@@ -311,10 +311,10 @@ export default function IoTDeviceManager() {
         setBluetoothDevices(prev =>
           prev.map(d => d.id === device.id ? { ...d, connected: true } : d)
         );
-        
+
         // Start battery monitoring for this device
         startBatteryMonitoring(device, server);
-        
+
         toast({
           title: "Connected",
           description: `Connected to ${device.name} via Bluetooth.`,
@@ -338,13 +338,13 @@ export default function IoTDeviceManager() {
         const batteryCharacteristic = await batteryService.getCharacteristic('battery_level');
         const batteryData = await batteryCharacteristic.readValue();
         const batteryLevel = batteryData.getUint8(0);
-        
+
         // Update the device battery level via API
         const matchingDevice = queryClient.getQueryData(["/api/iot-devices"]) as any[];
-        const deviceToUpdate = matchingDevice?.find((iotDevice: any) => 
+        const deviceToUpdate = matchingDevice?.find((iotDevice: any) =>
           iotDevice.bluetoothId === device.id
         );
-        
+
         if (deviceToUpdate) {
           try {
             await fetch(`/api/iot-devices/${deviceToUpdate.id}/battery`, {
@@ -352,10 +352,10 @@ export default function IoTDeviceManager() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ batteryLevel })
             });
-            
+
             // Invalidate cache to refresh the UI with updated battery level
             queryClient.invalidateQueries({ queryKey: ["/api/iot-devices"] });
-            
+
             console.log(`Battery update for ${device.name}: ${batteryLevel}%`);
           } catch (error) {
             console.error(`Failed to update battery for ${device.name}:`, error);
@@ -368,13 +368,13 @@ export default function IoTDeviceManager() {
 
     // Monitor battery every 30 seconds
     const intervalId = setInterval(monitorBattery, 30000);
-    
+
     // Stop monitoring when device disconnects
     device.addEventListener?.('gattserverdisconnected', () => {
       clearInterval(intervalId);
       console.log(`Stopped battery monitoring for ${device.name}`);
     });
-    
+
     // Initial battery read
     monitorBattery();
   };
@@ -408,7 +408,7 @@ export default function IoTDeviceManager() {
   const handleSubmit = (data: InsertIotDevice) => {
     console.log('Form submission started:', data);
     console.log('Form errors:', form.formState.errors);
-    
+
     // Validate required fields
     if (!data.deviceName || data.deviceName.trim() === '') {
       console.error('Device name is required');
@@ -419,7 +419,7 @@ export default function IoTDeviceManager() {
       });
       return;
     }
-    
+
     // Add userId from session to the device data
     const deviceData = {
       ...data,
@@ -427,7 +427,7 @@ export default function IoTDeviceManager() {
       connectionStatus: "disconnected",
       isConnected: false
     };
-    
+
     console.log('Submitting device data:', deviceData);
     addDeviceMutation.mutate(deviceData);
   };
@@ -456,7 +456,7 @@ export default function IoTDeviceManager() {
           <CardContent className="p-6">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
+                <Button
                   className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                   onClick={() => {
                     form.reset({
@@ -477,12 +477,12 @@ export default function IoTDeviceManager() {
                   Add IoT Device
                 </Button>
               </DialogTrigger>
-              
+
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Add New IoT Device</DialogTitle>
                 </DialogHeader>
-                
+
                 <div className="space-y-4">
                   {/* Bluetooth Scan Button - Safari compatible */}
                   <div className="space-y-2">
@@ -527,7 +527,7 @@ export default function IoTDeviceManager() {
                       )}
                     </div>
                   )}
-                
+
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                       <FormField
@@ -537,9 +537,9 @@ export default function IoTDeviceManager() {
                           <FormItem>
                             <FormLabel>Device Name</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="My Apple Watch" 
-                                {...field} 
+                              <Input
+                                placeholder="My Apple Watch"
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -577,8 +577,8 @@ export default function IoTDeviceManager() {
                           <FormItem>
                             <FormLabel>Firmware Version (Optional)</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="1.0.0" 
+                              <Input
+                                placeholder="1.0.0"
                                 {...field}
                                 value={field.value ?? ""}
                               />
@@ -642,7 +642,7 @@ export default function IoTDeviceManager() {
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   {/* Battery Level */}
                   {device.batteryLevel && (

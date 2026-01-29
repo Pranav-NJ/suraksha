@@ -1,5 +1,5 @@
 import db from '../../config/db.js';
-import { locationTracking, safeZones } from '@shared/schema';
+import { locationTracking, safeZones } from '../../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { config } from '../../config/env.js';
 

@@ -1,5 +1,5 @@
 // Local profile management for immediate persistence
-import type { UpsertUser, User } from "@shared/schema";
+import type { UpsertUser, User } from "@/lib/validation";
 
 const PROFILE_KEY = 'sakhi_user_profile';
 
@@ -11,7 +11,7 @@ export class LocalProfile {
   static load(): User | null {
     const stored = localStorage.getItem(PROFILE_KEY);
     if (!stored) return null;
-    
+
     try {
       return JSON.parse(stored) as User;
     } catch {
