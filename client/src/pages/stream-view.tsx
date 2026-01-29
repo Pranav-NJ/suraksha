@@ -26,9 +26,9 @@ interface StreamData {
 }
 
 export default function StreamView() {
-  const [match, params] = useRoute('/stream/:streamId');
+  const [, params] = useRoute('/stream/:streamId');
   const [viewerCount, setViewerCount] = useState(1);
-  
+
   const { data: stream, isLoading, error } = useQuery<StreamData>({
     queryKey: ['/api/live-stream', params?.streamId],
     enabled: !!params?.streamId,
@@ -70,7 +70,7 @@ export default function StreamView() {
               <p className="text-gray-600 mb-4">
                 This stream may have ended or the link is invalid.
               </p>
-              <Button 
+              <Button
                 onClick={() => window.location.href = '/'}
                 className="bg-red-500 hover:bg-red-600"
               >
@@ -86,7 +86,7 @@ export default function StreamView() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 p-4">
       <div className="max-w-4xl mx-auto space-y-4">
-        
+
         {/* Emergency Alert Banner */}
         {stream.emergencyAlertId && (
           <Card className="border-red-500 bg-red-50">
@@ -127,10 +127,10 @@ export default function StreamView() {
                   </span>
                 </div>
               </div>
-              
+
               {stream.emergencyAlertId && (
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
                   onClick={() => window.open('tel:112', '_self')}
                 >
@@ -194,7 +194,7 @@ export default function StreamView() {
                 <div>
                   <span className="font-medium flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    Location: 
+                    Location:
                   </span>
                   <span className="ml-5">{stream.location.address}</span>
                 </div>
@@ -205,7 +205,7 @@ export default function StreamView() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <Button 
+          <Button
             onClick={() => window.location.href = '/'}
             variant="outline"
             className="flex-1"
@@ -213,7 +213,7 @@ export default function StreamView() {
             Back to Home
           </Button>
           {stream.emergencyAlertId && (
-            <Button 
+            <Button
               onClick={() => {
                 const message = `I received an emergency stream link from ${stream.userName} (${stream.userEmail}). Please check on them immediately.`;
                 window.open(`tel:112`, '_self');

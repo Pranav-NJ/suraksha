@@ -37,7 +37,7 @@ export default function EmergencyStreamPage() {
   const callEmergencyServices = (number: string, service: string) => {
     const telUrl = `tel:${number}`;
     window.location.href = telUrl;
-    
+
     toast({
       title: `Calling ${service}`,
       description: `Dialing ${number}`,
@@ -75,7 +75,7 @@ export default function EmergencyStreamPage() {
         {/* Emergency Details */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Emergency in Progress</h2>
-          
+
           {streamData && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -83,13 +83,13 @@ export default function EmergencyStreamPage() {
                   <h3 className="font-semibold text-red-800 mb-2">Trigger Type</h3>
                   <p className="text-red-700">{streamData.triggerType?.replace('_', ' ').toUpperCase()}</p>
                 </div>
-                
+
                 <div className="bg-red-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-red-800 mb-2">Alert Time</h3>
                   <p className="text-red-700">{new Date(streamData.createdAt).toLocaleString()}</p>
                 </div>
               </div>
-              
+
               {streamData.latitude && streamData.longitude && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
@@ -97,7 +97,7 @@ export default function EmergencyStreamPage() {
                     Location
                   </h3>
                   <p className="text-blue-700 mb-2">{streamData.address || `${streamData.latitude}, ${streamData.longitude}`}</p>
-                  <a 
+                  <a
                     href={`https://www.google.com/maps?q=${streamData.latitude},${streamData.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -128,7 +128,7 @@ export default function EmergencyStreamPage() {
         {/* Emergency Actions */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-bold mb-4 text-red-600">Emergency Response Actions</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button
               onClick={() => callEmergencyServices('100', 'Police')}
@@ -140,7 +140,7 @@ export default function EmergencyStreamPage() {
                 <div className="text-sm">100</div>
               </div>
             </Button>
-            
+
             <Button
               onClick={() => callEmergencyServices('108', 'Medical Emergency')}
               className="bg-green-600 hover:bg-green-700 text-white p-4 h-auto flex flex-col items-center gap-2"
@@ -151,7 +151,7 @@ export default function EmergencyStreamPage() {
                 <div className="text-sm">108</div>
               </div>
             </Button>
-            
+
             <Button
               onClick={() => callEmergencyServices('1091', 'Women Helpline')}
               className="bg-purple-600 hover:bg-purple-700 text-white p-4 h-auto flex flex-col items-center gap-2"
@@ -163,7 +163,7 @@ export default function EmergencyStreamPage() {
               </div>
             </Button>
           </div>
-          
+
           <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
             <h4 className="font-semibold text-yellow-800 mb-2">Important Instructions:</h4>
             <ul className="text-yellow-700 text-sm space-y-1">

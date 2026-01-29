@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'wouter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, AlertTriangle } from 'lucide-react';
@@ -90,7 +90,7 @@ export default function WatchStream() {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4 text-sm text-gray-600">
             <div className="flex items-center space-x-1">
               <Users className="w-4 h-4" />
@@ -99,8 +99,8 @@ export default function WatchStream() {
             <div className="flex items-center space-x-1">
               <Clock className="w-4 h-4" />
               <span>
-                Started {displayStream?.startTime 
-                  ? new Date(displayStream.startTime).toLocaleString('en-IN') 
+                Started {displayStream?.startTime
+                  ? new Date(displayStream.startTime).toLocaleString('en-IN')
                   : new Date().toLocaleString('en-IN')
                 }
               </span>
@@ -110,8 +110,8 @@ export default function WatchStream() {
 
         {/* WebRTC Video Player */}
         {streamId && (
-          <WebRTCViewer 
-            streamId={streamId} 
+          <WebRTCViewer
+            streamId={streamId}
             emergency={isEmergency}
           />
         )}

@@ -13,7 +13,7 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
-  
+
   const {
     isConnected,
     isStreaming,
@@ -43,7 +43,7 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
     try {
       setIsLoading(true);
       setStreamError(null);
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -52,9 +52,9 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
         },
         audio: true
       });
-      
+
       await startStreaming(stream);
-      
+
     } catch (err) {
       console.error('Error accessing camera:', err);
       const error = err instanceof Error ? err : new Error('Failed to access camera');
@@ -101,7 +101,7 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
           muted
           className="w-full h-auto aspect-video bg-gray-900"
         />
-        
+
         {!isStreaming && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 text-white">
             <div className="text-center p-4">
@@ -115,7 +115,7 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
             </div>
           </div>
         )}
-        
+
         <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
           {isConnected ? (
             <Wifi className="h-3 w-3 text-green-400" />
@@ -125,14 +125,14 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
           <span>{connectionState}</span>
         </div>
       </div>
-      
+
       {streamError && (
         <Alert variant="destructive" className="w-full max-w-2xl">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{streamError}</AlertDescription>
         </Alert>
       )}
-      
+
       <div className="flex space-x-4">
         <Button
           onClick={isStreaming ? stopCamera : startCamera}
@@ -152,7 +152,7 @@ export function ChildStream({ roomId, onError }: ChildStreamProps) {
             </>
           )}
         </Button>
-        
+
         {!isConnected && (
           <Button variant="outline" disabled>
             <span>Connecting to server...</span>
