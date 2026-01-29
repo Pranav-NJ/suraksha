@@ -13,6 +13,7 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "../shared"),
       "zod": path.resolve(__dirname, "../node_modules/zod"),
     },
+    dedupe: ["zod", "react", "react-dom"],
   },
   server: {
     fs: {
