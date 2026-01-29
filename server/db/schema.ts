@@ -251,16 +251,29 @@ export const alertHistory = pgTable("alert_history", {
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true
+}).extend({
+  id: z.string(),
+  isVerified: z.boolean().optional(),
 });
 
 export const upsertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true
+}).extend({
+  id: z.string(),
+  isVerified: z.boolean().optional(),
 });
 
 export const insertEmergencyContactSchema = createInsertSchema(emergencyContacts).omit({
   id: true,
   createdAt: true
+}).extend({
+  priority: z.number().optional(),
+  isPrimary: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  name: z.string(),
+  phoneNumber: z.string(),
+  userId: z.string(),
 });
 
 export const insertEmergencyAlertSchema = createInsertSchema(emergencyAlerts).omit({
@@ -270,12 +283,21 @@ export const insertEmergencyAlertSchema = createInsertSchema(emergencyAlerts).om
   latitude: z.union([z.number(), z.string().transform(Number)]).optional(),
   longitude: z.union([z.number(), z.string().transform(Number)]).optional(),
   triggerType: z.string().optional().default('manual_button'),
-  userId: z.string().optional().default('demo-user')
+  userId: z.string().optional().default('demo-user'),
+  confidenceScore: z.number().optional(),
+  notificationsSent: z.number().optional(),
+  isResolved: z.boolean().optional(),
 });
 
 export const insertCommunityAlertSchema = createInsertSchema(communityAlerts).omit({
   id: true,
   createdAt: true
+}).extend({
+  latitude: z.number(),
+  longitude: z.number(),
+  verified: z.boolean().optional(),
+  type: z.string(),
+  description: z.string(),
 });
 
 export const insertSafeZoneSchema = createInsertSchema(safeZones).omit({
@@ -290,11 +312,24 @@ export const insertSafeZoneSchema = createInsertSchema(safeZones).omit({
 export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
   id: true,
   createdAt: true
+}).extend({
+  isActive: z.boolean().optional(),
+  emergencyAlertId: z.number().optional(),
+  userId: z.string(),
+  streamUrl: z.string(),
+  shareLink: z.string(),
 });
 
 export const insertDestinationSchema = createInsertSchema(destinations).omit({
   id: true,
   createdAt: true
+}).extend({
+  isFavorite: z.boolean().optional(),
+  userId: z.string(),
+  name: z.string(),
+  address: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
 });
 
 export const insertHomeLocationSchema = createInsertSchema(homeLocations).omit({
@@ -303,7 +338,8 @@ export const insertHomeLocationSchema = createInsertSchema(homeLocations).omit({
   updatedAt: true
 }).extend({
   latitude: z.number(),
-  longitude: z.number()
+  longitude: z.number(),
+  userId: z.string(),
 });
 
 
@@ -313,7 +349,10 @@ export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).
   createdAt: true
 }).extend({
   isVerified: z.boolean().optional(),
-  expiresAt: z.date()
+  expiresAt: z.date(),
+  identifier: z.string(),
+  type: z.string(),
+  otp: z.string(),
 });
 
 export const insertIotDeviceSchema = createInsertSchema(iotDevices).omit({
@@ -322,7 +361,11 @@ export const insertIotDeviceSchema = createInsertSchema(iotDevices).omit({
   updatedAt: true
 }).extend({
   isConnected: z.boolean().optional(),
-  batteryLevel: z.number().optional()
+  batteryLevel: z.number().optional(),
+  userId: z.string(),
+  deviceName: z.string(),
+  deviceType: z.string(),
+  lastConnected: z.date().optional(),
 });
 
 export const insertHealthMetricSchema = createInsertSchema(healthMetrics).omit({
@@ -338,7 +381,8 @@ export const insertHealthMetricSchema = createInsertSchema(healthMetrics).omit({
   stressLevel: z.number().optional(),
   stepCount: z.number().optional(),
   caloriesBurned: z.number().optional(),
-  sleepQuality: z.number().optional()
+  sleepQuality: z.number().optional(),
+  userId: z.string(),
 });
 
 export const insertStressAnalysisSchema = createInsertSchema(stressAnalysis).omit({
@@ -348,7 +392,11 @@ export const insertStressAnalysisSchema = createInsertSchema(stressAnalysis).omi
 }).extend({
   overallStressScore: z.number(),
   heartRateVariability: z.number().optional(),
-  skinConductance: z.number().optional()
+  skinConductance: z.number().optional(),
+  userId: z.string(),
+  riskLevel: z.string(),
+  recommendedActions: z.array(z.string()).optional(),
+  triggerFactors: z.array(z.string()).optional(),
 });
 
 export const insertIotEmergencyTriggerSchema = createInsertSchema(iotEmergencyTriggers).omit({
@@ -357,7 +405,10 @@ export const insertIotEmergencyTriggerSchema = createInsertSchema(iotEmergencyTr
   timestamp: true
 }).extend({
   isResolved: z.boolean().optional(),
-  responseTime: z.number().optional()
+  responseTime: z.number().optional(),
+  userId: z.string(),
+  triggerType: z.string(),
+  severity: z.string(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -426,13 +477,24 @@ export const insertFamilyConnectionSchemaV2 = createInsertSchema(familyConnectio
   createdAt: true,
   acceptedAt: true,
 }).extend({
-  inviteExpiry: z.date().optional()
+  inviteExpiry: z.date().optional(),
+  parentUserId: z.string(),
+  childUserId: z.string(),
+  status: z.string().optional(),
 });
 
 export const insertParentNotificationSchema = createInsertSchema(parentNotifications).omit({
   id: true,
   createdAt: true,
   readAt: true,
+}).extend({
+  parentUserId: z.string(),
+  childUserId: z.string(),
+  type: z.string(),
+  title: z.string(),
+  message: z.string(),
+  isRead: z.boolean().optional(),
+  priority: z.string().optional(),
 });
 
 export const insertFamilySettingsSchema = createInsertSchema(familySettings).omit({

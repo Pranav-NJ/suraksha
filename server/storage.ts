@@ -193,18 +193,21 @@ export class DatabaseStorage implements IStorage {
     // User doesn't exist, insert new user
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values(userData as any)
       .returning();
     return user;
   }
 
   async updateUser(id: string, updates: Partial<UpsertUser>): Promise<User | undefined> {
-    const [user] = await db
+    const [updated] = await db
       .update(users)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      } as any)
       .where(eq(users.id, id))
       .returning();
-    return user || undefined;
+    return updated || undefined;
   }
 
   // Emergency contacts operations
@@ -218,7 +221,7 @@ export class DatabaseStorage implements IStorage {
   async createEmergencyContact(contact: InsertEmergencyContact): Promise<EmergencyContact> {
     const [newContact] = await db
       .insert(emergencyContacts)
-      .values(contact)
+      .values(contact as any)
       .returning();
     return newContact;
   }
@@ -226,7 +229,7 @@ export class DatabaseStorage implements IStorage {
   async updateEmergencyContact(id: number, updates: Partial<InsertEmergencyContact>): Promise<EmergencyContact | undefined> {
     const [contact] = await db
       .update(emergencyContacts)
-      .set(updates)
+      .set(updates as any)
       .where(eq(emergencyContacts.id, id))
       .returning();
     return contact || undefined;
@@ -244,7 +247,7 @@ export class DatabaseStorage implements IStorage {
   async createEmergencyAlert(alert: InsertEmergencyAlert): Promise<EmergencyAlert> {
     const [newAlert] = await db
       .insert(emergencyAlerts)
-      .values(alert)
+      .values(alert as any)
       .returning();
     return newAlert;
   }
@@ -287,7 +290,7 @@ export class DatabaseStorage implements IStorage {
   async createCommunityAlert(alert: InsertCommunityAlert): Promise<CommunityAlert> {
     const [newAlert] = await db
       .insert(communityAlerts)
-      .values(alert)
+      .values(alert as any)
       .returning();
     return newAlert;
   }
@@ -303,7 +306,7 @@ export class DatabaseStorage implements IStorage {
   async createSafeZone(zone: InsertSafeZone): Promise<SafeZone> {
     const [newZone] = await db
       .insert(safeZones)
-      .values(zone)
+      .values(zone as any)
       .returning();
     return newZone;
   }
@@ -320,7 +323,7 @@ export class DatabaseStorage implements IStorage {
   async createLiveStream(stream: InsertLiveStream): Promise<LiveStream> {
     const [newStream] = await db
       .insert(liveStreams)
-      .values(stream)
+      .values(stream as any)
       .returning();
     return newStream;
   }
@@ -360,7 +363,7 @@ export class DatabaseStorage implements IStorage {
   async createDestination(destination: InsertDestination): Promise<Destination> {
     const [newDestination] = await db
       .insert(destinations)
-      .values(destination)
+      .values(destination as any)
       .returning();
     return newDestination;
   }
@@ -382,7 +385,7 @@ export class DatabaseStorage implements IStorage {
   async setHomeLocation(homeLocation: InsertHomeLocation): Promise<HomeLocation> {
     const [result] = await db
       .insert(homeLocations)
-      .values(homeLocation)
+      .values(homeLocation as any)
       .onConflictDoUpdate({
         target: homeLocations.userId,
         set: {
@@ -390,7 +393,7 @@ export class DatabaseStorage implements IStorage {
           longitude: homeLocation.longitude,
           address: homeLocation.address,
           updatedAt: new Date(),
-        },
+        } as any,
       })
       .returning();
     return result;
@@ -402,7 +405,7 @@ export class DatabaseStorage implements IStorage {
       .set({
         ...updates,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(homeLocations.userId, userId))
       .returning();
     return result;
@@ -412,7 +415,7 @@ export class DatabaseStorage implements IStorage {
   async createOtpVerification(otp: InsertOtpVerification): Promise<OtpVerification> {
     const [result] = await db
       .insert(otpVerifications)
-      .values(otp)
+      .values(otp as any)
       .returning();
     return result;
   }
@@ -460,14 +463,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createIotDevice(device: InsertIotDevice): Promise<IotDevice> {
-    const [newDevice] = await db.insert(iotDevices).values(device).returning();
+    const [newDevice] = await db.insert(iotDevices).values(device as any).returning();
     return newDevice;
   }
 
   async updateIotDevice(id: number, updates: Partial<InsertIotDevice>): Promise<IotDevice | undefined> {
     const [device] = await db
       .update(iotDevices)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() } as any)
       .where(eq(iotDevices.id, id))
       .returning();
     return device || undefined;
@@ -525,7 +528,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createHealthMetric(metric: InsertHealthMetric): Promise<HealthMetric> {
-    const [newMetric] = await db.insert(healthMetrics).values(metric).returning();
+    const [newMetric] = await db.insert(healthMetrics).values(metric as any).returning();
     return newMetric;
   }
 
@@ -561,7 +564,7 @@ export class DatabaseStorage implements IStorage {
           ? [analysis.triggerFactors]
           : analysis.triggerFactors
     };
-    const [newAnalysis] = await db.insert(stressAnalysis).values(preparedAnalysis).returning();
+    const [newAnalysis] = await db.insert(stressAnalysis).values(preparedAnalysis as any).returning();
     return newAnalysis;
   }
 
@@ -585,7 +588,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createIotEmergencyTrigger(trigger: InsertIotEmergencyTrigger): Promise<IotEmergencyTrigger> {
-    const [newTrigger] = await db.insert(iotEmergencyTriggers).values(trigger).returning();
+    const [newTrigger] = await db.insert(iotEmergencyTriggers).values(trigger as any).returning();
     return newTrigger;
   }
 
@@ -612,7 +615,7 @@ export class DatabaseStorage implements IStorage {
   async createFamilyConnection(connection: InsertFamilyConnection): Promise<FamilyConnection> {
     const [created] = await db
       .insert(familyConnections)
-      .values(connection)
+      .values(connection as any)
       .returning();
     return created;
   }
@@ -620,7 +623,7 @@ export class DatabaseStorage implements IStorage {
   async updateFamilyConnection(id: number, updates: Partial<InsertFamilyConnection>): Promise<FamilyConnection | undefined> {
     const [updated] = await db
       .update(familyConnections)
-      .set(updates)
+      .set(updates as any)
       .where(eq(familyConnections.id, id))
       .returning();
     return updated;
