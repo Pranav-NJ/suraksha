@@ -8,7 +8,7 @@
     "dev:nowatch": "tsx server/index.ts",
     "build": "npm run build:client && npm run build:server",
     "build:client": "npm install --prefix client && vite build",
-    "build:server": "tsc",
+    "build:server": "echo Server build skipped - using tsx directly",
     "start": "NODE_ENV=production tsx server/index.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "tsx server/db/migrate.ts",
