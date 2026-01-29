@@ -281,6 +281,10 @@ export const insertCommunityAlertSchema = createInsertSchema(communityAlerts).om
 export const insertSafeZoneSchema = createInsertSchema(safeZones).omit({
   id: true,
   createdAt: true
+}).extend({
+  latitude: z.number(),
+  longitude: z.number(),
+  radius: z.number()
 });
 
 export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
@@ -297,6 +301,9 @@ export const insertHomeLocationSchema = createInsertSchema(homeLocations).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+}).extend({
+  latitude: z.number(),
+  longitude: z.number()
 });
 
 
@@ -304,30 +311,53 @@ export const insertHomeLocationSchema = createInsertSchema(homeLocations).omit({
 export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).omit({
   id: true,
   createdAt: true
+}).extend({
+  isVerified: z.boolean().optional(),
+  expiresAt: z.date()
 });
 
 export const insertIotDeviceSchema = createInsertSchema(iotDevices).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+}).extend({
+  isConnected: z.boolean().optional(),
+  batteryLevel: z.number().optional()
 });
 
 export const insertHealthMetricSchema = createInsertSchema(healthMetrics).omit({
   id: true,
   createdAt: true,
   timestamp: true
+}).extend({
+  heartRate: z.number().optional(),
+  bloodPressureSystolic: z.number().optional(),
+  bloodPressureDiastolic: z.number().optional(),
+  oxygenSaturation: z.number().optional(),
+  skinTemperature: z.number().optional(),
+  stressLevel: z.number().optional(),
+  stepCount: z.number().optional(),
+  caloriesBurned: z.number().optional(),
+  sleepQuality: z.number().optional()
 });
 
 export const insertStressAnalysisSchema = createInsertSchema(stressAnalysis).omit({
   id: true,
   createdAt: true,
   analysisTimestamp: true
+}).extend({
+  overallStressScore: z.number(),
+  heartRateVariability: z.number().optional(),
+  skinConductance: z.number().optional()
 });
 
 export const insertIotEmergencyTriggerSchema = createInsertSchema(iotEmergencyTriggers).omit({
   id: true,
   createdAt: true,
   timestamp: true
+}).extend({
+  isResolved: z.boolean().optional(),
+  responseTime: z.number().optional()
 });
 
 export type User = typeof users.$inferSelect;
@@ -395,6 +425,8 @@ export const insertFamilyConnectionSchemaV2 = createInsertSchema(familyConnectio
   id: true,
   createdAt: true,
   acceptedAt: true,
+}).extend({
+  inviteExpiry: z.date().optional()
 });
 
 export const insertParentNotificationSchema = createInsertSchema(parentNotifications).omit({
