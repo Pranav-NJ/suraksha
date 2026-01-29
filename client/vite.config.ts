@@ -1,12 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "src"),
       "@shared": path.resolve(__dirname, "../shared"),
       "drizzle-orm": path.resolve(__dirname, "../node_modules/drizzle-orm"),
       "drizzle-zod": path.resolve(__dirname, "../node_modules/drizzle-zod"),
@@ -14,6 +17,9 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      allow: [".."],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:5000",
@@ -29,5 +35,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "../dist/public"),
     emptyOutDir: true,
+    commonjsOptions: {
+      include: [/shared/, /node_modules/],
+    },
   },
 });
