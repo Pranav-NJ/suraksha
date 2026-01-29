@@ -4,8 +4,19 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { envValidator } from "./config/environment";
 import { initializeWebSocket } from "./services/websocket";
+import cors from "cors";
 
 const app = express();
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://sakhi-suraksha-web.onrender.com']
+    : ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -111,10 +122,23 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  // Initialize WebSocket
+  initializeWebSocket(server);
+
+  // Health check endpoint
+  app.get('/api/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV
+    });
+  });
+
   // Initialize default connections and data on server start
   const { storage } = await import("./storage");
   try {
-    // Ensure default Sharanya connection exists
+    // Ensure default connection exists
     const connections = await storage.getFamilyConnections("demo-user");
     console.log(`Initialized with ${connections.length} family connections`);
   } catch (error) {

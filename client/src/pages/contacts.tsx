@@ -1,4 +1,4 @@
-import { Users, Plus, Phone, Edit3, Trash2, X, QrCode, Scan, Mail } from "lucide-react";
+import { Users, Plus, Phone, Edit3, Trash2, QrCode, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -345,7 +345,9 @@ export default function Contacts() {
                             <Input
                               type="email"
                               placeholder="contact@example.com"
-                              {...field}
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
                             />
                           </FormControl>
                           <FormMessage />
