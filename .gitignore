@@ -69,5 +69,3 @@ server/persistent-data.json
 
 # Vite / dev cache
 *.timestamp-*.mjs
-
-
