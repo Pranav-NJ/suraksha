@@ -8,6 +8,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@shared": path.resolve(__dirname, "../shared"),
+      "drizzle-orm": path.resolve(__dirname, "./node_modules/drizzle-orm"),
+      "drizzle-zod": path.resolve(__dirname, "./node_modules/drizzle-zod"),
     },
   },
   server: {
