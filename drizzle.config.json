@@ -1,7 +1,7 @@
 {
   "name": "drizzle-config",
   "dialect": "postgresql",
-  "schema": "./shared/schema.ts",
+  "schema": "./server/db/schema.ts",
   "out": "./server/db/migrations",
   "driver": "pg",
   "dbCredentials": {

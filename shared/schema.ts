@@ -1,269 +1,301 @@
-import { pgTable, text, serial, integer, boolean, timestamp, real, varchar, jsonb, index } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table for authentication
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => ({
-    IDX_session_expire: index("IDX_session_expire").on(table.expire),
-  }),
-);
+// --- Base Schemas ---
+// These mirror the database structure but use pure Zod to be browser-safe
 
-// Enhanced user schema with authentication
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  phoneNumber: text("phone_number"),
-  whatsappNumber: text("whatsapp_number"),
-  password: varchar("password"),
-  isVerified: boolean("is_verified").default(false),
-  familyConnectionCode: varchar("family_connection_code").unique(),
-  emergencyMessage: text("emergency_message").default("Emergency! I need help. This is an automated message from Sakhi Suraksha."),
-  isLocationSharingActive: boolean("is_location_sharing_active").default(false),
-  theme: text("theme").default("light"),
-  voiceActivationEnabled: boolean("voice_activation_enabled").default(true),
-  shakeDetectionEnabled: boolean("shake_detection_enabled").default(true),
-  communityAlertsEnabled: boolean("community_alerts_enabled").default(true),
-  soundAlertsEnabled: boolean("sound_alerts_enabled").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const userSchema = z.object({
+  id: z.string(),
+  email: z.string().email().nullable().optional(),
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  profileImageUrl: z.string().nullable().optional(),
+  phoneNumber: z.string().nullable().optional(),
+  whatsappNumber: z.string().nullable().optional(),
+  password: z.string().nullable().optional(),
+  isVerified: z.boolean().default(false),
+  familyConnectionCode: z.string().nullable().optional(),
+  emergencyMessage: z.string().default("Emergency! I need help. This is an automated message from Sakhi Suraksha."),
+  isLocationSharingActive: z.boolean().default(false),
+  theme: z.string().default("light"),
+  voiceActivationEnabled: z.boolean().default(true),
+  shakeDetectionEnabled: z.boolean().default(true),
+  communityAlertsEnabled: z.boolean().default(true),
+  soundAlertsEnabled: z.boolean().default(true),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-export const emergencyContacts = pgTable("emergency_contacts", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
-  phoneNumber: text("phone_number").notNull(),
-  email: text("email"),
-  relationship: text("relationship"),
-  priority: integer("priority").default(0),
-  isPrimary: boolean("is_primary").default(false),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
+export const emergencyContactSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  name: z.string(),
+  phoneNumber: z.string(),
+  email: z.string().nullable().optional(),
+  relationship: z.string().nullable().optional(),
+  priority: z.number().default(0),
+  isPrimary: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  createdAt: z.date().optional(),
 });
 
-export const emergencyAlerts = pgTable("emergency_alerts", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  triggerType: text("trigger_type").notNull(), // 'button', 'voice', 'shake', 'smartwatch'
-  scenario: text("scenario"),
-  confidenceScore: real("confidence_score"),
-  transcription: text("transcription"),
-  audioAnalysis: jsonb("audio_analysis"),
-  latitude: real("latitude"),
-  longitude: real("longitude"),
-  address: text("address"),
-  audioRecordingUrl: text("audio_recording_url"),
-  videoRecordingUrl: text("video_recording_url"),
-  deviceInfo: text("device_info"), // Smartwatch or device details
-  status: text("status").default("active"),
-  isResolved: boolean("is_resolved").default(false),
-  notificationsSent: integer("notifications_sent").default(0),
-  createdAt: timestamp("created_at").defaultNow()
+export const emergencyAlertSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  triggerType: z.string(),
+  scenario: z.string().nullable().optional(),
+  confidenceScore: z.number().nullable().optional(),
+  transcription: z.string().nullable().optional(),
+  audioAnalysis: z.any().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  address: z.string().nullable().optional(),
+  audioRecordingUrl: z.string().nullable().optional(),
+  videoRecordingUrl: z.string().nullable().optional(),
+  deviceInfo: z.string().nullable().optional(),
+  status: z.string().default("active"),
+  isResolved: z.boolean().default(false),
+  notificationsSent: z.number().default(0),
+  createdAt: z.date().optional(),
 });
 
-export const communityAlerts = pgTable("community_alerts", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id), // Optional for anonymous reports
-  type: text("type").notNull(), // 'safety_issue', 'harassment', 'poor_lighting', etc.
-  description: text("description").notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
-  severity: text("severity").notNull().default("medium"), // 'low', 'medium', 'high'
-  verified: boolean("verified").default(false),
-  reportedBy: text("reported_by").default("anonymous"),
-  createdAt: timestamp("created_at").defaultNow()
+export const communityAlertSchema = z.object({
+  id: z.number(),
+  userId: z.string().nullable().optional(),
+  type: z.string(),
+  description: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  severity: z.string().default("medium"),
+  verified: z.boolean().default(false),
+  reportedBy: z.string().default("anonymous"),
+  createdAt: z.date().optional(),
 });
 
-export const safeZones = pgTable("safe_zones", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id),
-  name: text("name").notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
-  radius: real("radius").notNull(), // in meters
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
+export const safeZoneSchema = z.object({
+  id: z.number(),
+  userId: z.string().nullable().optional(),
+  name: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  radius: z.number(),
+  isActive: z.boolean().default(true),
+  createdAt: z.date().optional(),
 });
 
-// Live streaming sessions for emergency video sharing
-export const liveStreams = pgTable("live_streams", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  emergencyAlertId: integer("emergency_alert_id").references(() => emergencyAlerts.id),
-  streamUrl: text("stream_url").notNull(),
-  shareLink: text("share_link").notNull(),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  endedAt: timestamp("ended_at")
+export const liveStreamSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  emergencyAlertId: z.number().nullable().optional(),
+  streamUrl: z.string(),
+  shareLink: z.string(),
+  isActive: z.boolean().default(true),
+  createdAt: z.date().optional(),
+  endedAt: z.date().nullable().optional(),
 });
 
-// Routes and destinations for safe route planning
-export const destinations = pgTable("destinations", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
-  address: text("address").notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
-  isFavorite: boolean("is_favorite").default(false),
-  createdAt: timestamp("created_at").defaultNow()
+export const destinationSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  name: z.string(),
+  address: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  isFavorite: z.boolean().default(false),
+  createdAt: z.date().optional(),
 });
 
-// Home locations table
-export const homeLocations = pgTable("home_locations", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().unique().references(() => users.id),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
-  address: text("address"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const homeLocationSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  address: z.string().nullable().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// OTP verification table
-export const otpVerifications = pgTable("otp_verifications", {
-  id: serial("id").primaryKey(),
-  identifier: varchar("identifier").notNull(), // phone number or email
-  type: varchar("type").notNull(), // 'phone' or 'email'
-  otp: varchar("otp").notNull(),
-  isVerified: boolean("is_verified").default(false),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+export const otpVerificationSchema = z.object({
+  id: z.number(),
+  identifier: z.string(),
+  type: z.string(),
+  otp: z.string(),
+  isVerified: z.boolean().default(false),
+  expiresAt: z.date(),
+  createdAt: z.date().optional(),
 });
 
-// IoT Device Management
-export const iotDevices = pgTable("iot_devices", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  deviceName: text("device_name").notNull(),
-  deviceType: text("device_type").notNull(), // 'smartwatch', 'fitness_tracker', 'health_monitor'
-  macAddress: text("mac_address").unique(),
-  bluetoothId: text("bluetooth_id"),
-  isConnected: boolean("is_connected").default(false),
-  batteryLevel: integer("battery_level"),
-  firmwareVersion: text("firmware_version"),
-  lastConnected: timestamp("last_connected"),
-  connectionStatus: text("connection_status").default("disconnected"), // 'connected', 'disconnected', 'pairing'
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
+export const iotDeviceSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  deviceName: z.string(),
+  deviceType: z.string(),
+  macAddress: z.string().nullable().optional(),
+  bluetoothId: z.string().nullable().optional(),
+  isConnected: z.boolean().default(false),
+  batteryLevel: z.number().nullable().optional(),
+  firmwareVersion: z.string().nullable().optional(),
+  lastConnected: z.date().nullable().optional(),
+  connectionStatus: z.string().default("disconnected"),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-// Health Monitoring Data
-export const healthMetrics = pgTable("health_metrics", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  deviceId: integer("device_id").references(() => iotDevices.id),
-  heartRate: integer("heart_rate"), // BPM
-  bloodPressureSystolic: integer("blood_pressure_systolic"),
-  bloodPressureDiastolic: integer("blood_pressure_diastolic"),
-  oxygenSaturation: real("oxygen_saturation"), // SpO2 percentage
-  skinTemperature: real("skin_temperature"), // Celsius
-  stressLevel: real("stress_level"), // 0-100 scale
-  stepCount: integer("step_count"),
-  caloriesBurned: real("calories_burned"),
-  sleepQuality: real("sleep_quality"), // 0-100 scale
-  activityLevel: text("activity_level"), // 'sedentary', 'light', 'moderate', 'vigorous'
-  timestamp: timestamp("timestamp").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow()
+export const healthMetricSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  deviceId: z.number().nullable().optional(),
+  heartRate: z.number().nullable().optional(),
+  bloodPressureSystolic: z.number().nullable().optional(),
+  bloodPressureDiastolic: z.number().nullable().optional(),
+  oxygenSaturation: z.number().nullable().optional(),
+  skinTemperature: z.number().nullable().optional(),
+  stressLevel: z.number().nullable().optional(),
+  stepCount: z.number().nullable().optional(),
+  caloriesBurned: z.number().nullable().optional(),
+  sleepQuality: z.number().nullable().optional(),
+  activityLevel: z.string().nullable().optional(),
+  timestamp: z.date().optional(),
+  createdAt: z.date().optional(),
 });
 
-// Stress Analysis and AI Predictions
-export const stressAnalysis = pgTable("stress_analysis", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  overallStressScore: real("overall_stress_score").notNull(), // 0-100 scale
-  heartRateVariability: real("heart_rate_variability"),
-  skinConductance: real("skin_conductance"),
-  movementPattern: text("movement_pattern"), // 'restless', 'normal', 'lethargic'
-  voiceStressIndicators: jsonb("voice_stress_indicators"), // AI analysis results
-  behaviorPattern: text("behavior_pattern"), // 'agitated', 'calm', 'anxious'
-  riskLevel: text("risk_level").notNull(), // 'low', 'medium', 'high', 'critical'
-  recommendedActions: text("recommended_actions").array(),
-  triggerFactors: text("trigger_factors").array(),
-  analysisTimestamp: timestamp("analysis_timestamp").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow()
+export const stressAnalysisSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  overallStressScore: z.number(),
+  heartRateVariability: z.number().nullable().optional(),
+  skinConductance: z.number().nullable().optional(),
+  movementPattern: z.string().nullable().optional(),
+  voiceStressIndicators: z.any().nullable().optional(),
+  behaviorPattern: z.string().nullable().optional(),
+  riskLevel: z.string(),
+  recommendedActions: z.array(z.string()).nullable().optional(),
+  triggerFactors: z.array(z.string()).nullable().optional(),
+  analysisTimestamp: z.date().optional(),
+  createdAt: z.date().optional(),
 });
 
-// Emergency Triggers from IoT Devices
-export const iotEmergencyTriggers = pgTable("iot_emergency_triggers", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  deviceId: integer("device_id").references(() => iotDevices.id),
-  triggerType: text("trigger_type").notNull(), // 'heart_rate_anomaly', 'fall_detection', 'panic_button', 'stress_threshold'
-  severity: text("severity").notNull(), // 'low', 'medium', 'high', 'critical'
-  sensorData: jsonb("sensor_data"), // Raw sensor readings
-  location: jsonb("location"), // GPS coordinates
-  isResolved: boolean("is_resolved").default(false),
-  responseTime: integer("response_time"), // seconds
-  emergencyAlertId: integer("emergency_alert_id").references(() => emergencyAlerts.id),
-  timestamp: timestamp("timestamp").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow()
+export const iotEmergencyTriggerSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  deviceId: z.number().nullable().optional(),
+  triggerType: z.string(),
+  severity: z.string(),
+  sensorData: z.any().nullable().optional(),
+  location: z.any().nullable().optional(),
+  isResolved: z.boolean().default(false),
+  responseTime: z.number().nullable().optional(),
+  emergencyAlertId: z.number().nullable().optional(),
+  timestamp: z.date().optional(),
+  createdAt: z.date().optional(),
 });
 
-// Persistent parent-child connections
-export const familyConnections = pgTable("family_connections", {
-  id: serial("id").primaryKey(),
-  parentUserId: varchar("parent_user_id").notNull().references(() => users.id),
-  childUserId: varchar("child_user_id").notNull().references(() => users.id),
-  relationshipType: text("relationship_type").notNull().default("parent-child"), // 'parent-child', 'guardian-ward', 'caregiver-patient'
-  status: text("status").notNull().default("active"), // 'active', 'pending', 'inactive', 'blocked'
-  permissions: jsonb("permissions").default('{"location": true, "emergency": true, "monitoring": true}'),
-  inviteCode: varchar("invite_code").unique(),
-  inviteExpiry: timestamp("invite_expiry"),
-  acceptedAt: timestamp("accepted_at"),
-  createdAt: timestamp("created_at").defaultNow()
+export const familyConnectionSchema = z.object({
+  id: z.number(),
+  parentUserId: z.string(),
+  childUserId: z.string(),
+  relationshipType: z.string().default("parent-child"),
+  status: z.string().default("active"),
+  permissions: z.any().default({ location: true, emergency: true, monitoring: true }),
+  inviteCode: z.string().nullable().optional(),
+  inviteExpiry: z.date().nullable().optional(),
+  acceptedAt: z.date().nullable().optional(),
+  createdAt: z.date().optional(),
 });
 
-// Enhanced emergency alerts with permanent storage
-export const alertHistory = pgTable("alert_history", {
-  id: serial("id").primaryKey(),
-  originalAlertId: integer("original_alert_id").references(() => emergencyAlerts.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  parentUserId: varchar("parent_user_id").references(() => users.id),
-  triggerType: text("trigger_type").notNull(),
-  message: text("message"),
-  latitude: real("latitude"),
-  longitude: real("longitude"),
-  address: text("address"),
-  status: text("status").notNull(), // 'active', 'resolved', 'responded'
-  resolvedAt: timestamp("resolved_at"),
-  resolvedBy: varchar("resolved_by").references(() => users.id),
-  responseTime: integer("response_time"), // seconds from trigger to resolution
-  audioRecordingUrl: text("audio_recording_url"),
-  videoRecordingUrl: text("video_recording_url"),
-  liveStreamUrl: text("live_stream_url"),
-  emergencyContactsNotified: jsonb("emergency_contacts_notified"),
-  isArchived: boolean("is_archived").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  archivedAt: timestamp("archived_at")
+export const alertHistorySchema = z.object({
+  id: z.number(),
+  originalAlertId: z.number().nullable().optional(),
+  userId: z.string(),
+  parentUserId: z.string().nullable().optional(),
+  triggerType: z.string(),
+  message: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  address: z.string().nullable().optional(),
+  status: z.string(),
+  resolvedAt: z.date().nullable().optional(),
+  resolvedBy: z.string().nullable().optional(),
+  responseTime: z.number().nullable().optional(),
+  audioRecordingUrl: z.string().nullable().optional(),
+  videoRecordingUrl: z.string().nullable().optional(),
+  liveStreamUrl: z.string().nullable().optional(),
+  emergencyContactsNotified: z.any().nullable().optional(),
+  isArchived: z.boolean().default(false),
+  createdAt: z.date().optional(),
+  archivedAt: z.date().nullable().optional(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
+export const parentNotificationSchema = z.object({
+  id: z.number(),
+  parentUserId: z.string(),
+  childUserId: z.string(),
+  type: z.string(),
+  title: z.string(),
+  message: z.string(),
+  data: z.any().nullable().optional(),
+  isRead: z.boolean().default(false),
+  priority: z.string().default("normal"),
+  createdAt: z.date().optional(),
+  readAt: z.date().nullable().optional(),
+});
+
+export const familySettingsSchema = z.object({
+  id: z.number(),
+  familyId: z.string(),
+  parentUserId: z.string(),
+  childUserId: z.string(),
+  autoLocationSharing: z.boolean().default(true),
+  emergencyAutoNotify: z.boolean().default(true),
+  safeZoneNotifications: z.boolean().default(true),
+  allowLiveTracking: z.boolean().default(false),
+  allowEmergencyOverride: z.boolean().default(true),
+  quietHours: z.any().nullable().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const voicePatternSchema = z.object({
+  id: z.number(),
+  pattern: z.string(),
+  description: z.string().nullable().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const locationTrackingSchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  accuracy: z.number().nullable().optional(),
+  altitude: z.number().nullable().optional(),
+  heading: z.number().nullable().optional(),
+  speed: z.number().nullable().optional(),
+  address: z.string().nullable().optional(),
+  isEmergency: z.boolean().default(false),
+  emergencyAlertId: z.number().nullable().optional(),
+  batteryLevel: z.number().nullable().optional(),
+  timestamp: z.date().optional(),
+});
+
+// --- Insert Schemas ---
+
+export const insertUserSchema = userSchema.omit({
   createdAt: true,
   updatedAt: true
 });
 
-export const upsertUserSchema = createInsertSchema(users).omit({
+export const upsertUserSchema = userSchema.omit({
   createdAt: true,
   updatedAt: true
 });
 
-export const insertEmergencyContactSchema = createInsertSchema(emergencyContacts).omit({
+export const insertEmergencyContactSchema = emergencyContactSchema.omit({
   id: true,
   createdAt: true
 });
 
-export const insertEmergencyAlertSchema = createInsertSchema(emergencyAlerts).omit({
+export const insertEmergencyAlertSchema = emergencyAlertSchema.omit({
   id: true,
   createdAt: true
 }).extend({
@@ -273,205 +305,113 @@ export const insertEmergencyAlertSchema = createInsertSchema(emergencyAlerts).om
   userId: z.string().optional().default('demo-user')
 });
 
-export const insertCommunityAlertSchema = createInsertSchema(communityAlerts).omit({
+export const insertCommunityAlertSchema = communityAlertSchema.omit({
   id: true,
   createdAt: true
 });
 
-export const insertSafeZoneSchema = createInsertSchema(safeZones).omit({
-  id: true,
-  createdAt: true
-}).extend({
-  latitude: z.number(),
-  longitude: z.number(),
-  radius: z.number()
-});
-
-export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
+export const insertSafeZoneSchema = safeZoneSchema.omit({
   id: true,
   createdAt: true
 });
 
-export const insertDestinationSchema = createInsertSchema(destinations).omit({
+export const insertLiveStreamSchema = liveStreamSchema.omit({
   id: true,
   createdAt: true
 });
 
-export const insertHomeLocationSchema = createInsertSchema(homeLocations).omit({
+export const insertDestinationSchema = destinationSchema.omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertHomeLocationSchema = homeLocationSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true
-}).extend({
-  latitude: z.number(),
-  longitude: z.number()
 });
 
-
-
-export const insertOtpVerificationSchema = createInsertSchema(otpVerifications).omit({
+export const insertOtpVerificationSchema = otpVerificationSchema.omit({
   id: true,
   createdAt: true
-}).extend({
-  isVerified: z.boolean().optional(),
-  expiresAt: z.date()
 });
 
-export const insertIotDeviceSchema = createInsertSchema(iotDevices).omit({
+export const insertIotDeviceSchema = iotDeviceSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true
-}).extend({
-  isConnected: z.boolean().optional(),
-  batteryLevel: z.number().optional()
 });
 
-export const insertHealthMetricSchema = createInsertSchema(healthMetrics).omit({
+export const insertHealthMetricSchema = healthMetricSchema.omit({
   id: true,
   createdAt: true,
   timestamp: true
-}).extend({
-  heartRate: z.number().optional(),
-  bloodPressureSystolic: z.number().optional(),
-  bloodPressureDiastolic: z.number().optional(),
-  oxygenSaturation: z.number().optional(),
-  skinTemperature: z.number().optional(),
-  stressLevel: z.number().optional(),
-  stepCount: z.number().optional(),
-  caloriesBurned: z.number().optional(),
-  sleepQuality: z.number().optional()
 });
 
-export const insertStressAnalysisSchema = createInsertSchema(stressAnalysis).omit({
+export const insertStressAnalysisSchema = stressAnalysisSchema.omit({
   id: true,
   createdAt: true,
   analysisTimestamp: true
-}).extend({
-  overallStressScore: z.number(),
-  heartRateVariability: z.number().optional(),
-  skinConductance: z.number().optional()
 });
 
-export const insertIotEmergencyTriggerSchema = createInsertSchema(iotEmergencyTriggers).omit({
+export const insertIotEmergencyTriggerSchema = iotEmergencyTriggerSchema.omit({
   id: true,
   createdAt: true,
   timestamp: true
-}).extend({
-  isResolved: z.boolean().optional(),
-  responseTime: z.number().optional()
 });
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type UpsertUser = z.infer<typeof upsertUserSchema>;
-export type EmergencyContact = typeof emergencyContacts.$inferSelect;
-export type InsertEmergencyContact = z.infer<typeof insertEmergencyContactSchema>;
-export type EmergencyAlert = typeof emergencyAlerts.$inferSelect;
-export type InsertEmergencyAlert = z.infer<typeof insertEmergencyAlertSchema>;
-export type CommunityAlert = typeof communityAlerts.$inferSelect;
-export type InsertCommunityAlert = z.infer<typeof insertCommunityAlertSchema>;
-export type SafeZone = typeof safeZones.$inferSelect;
-export type InsertSafeZone = z.infer<typeof insertSafeZoneSchema>;
-export type LiveStream = typeof liveStreams.$inferSelect;
-export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
-export type Destination = typeof destinations.$inferSelect;
-export type InsertDestination = z.infer<typeof insertDestinationSchema>;
-export type HomeLocation = typeof homeLocations.$inferSelect;
-export type InsertHomeLocation = z.infer<typeof insertHomeLocationSchema>;
-export type OtpVerification = typeof otpVerifications.$inferSelect;
-export type InsertOtpVerification = z.infer<typeof insertOtpVerificationSchema>;
-export type IotDevice = typeof iotDevices.$inferSelect;
-export type InsertIotDevice = z.infer<typeof insertIotDeviceSchema>;
-export type HealthMetric = typeof healthMetrics.$inferSelect;
-export type InsertHealthMetric = z.infer<typeof insertHealthMetricSchema>;
-export type StressAnalysis = typeof stressAnalysis.$inferSelect;
-export type InsertStressAnalysis = z.infer<typeof insertStressAnalysisSchema>;
-export type IotEmergencyTrigger = typeof iotEmergencyTriggers.$inferSelect;
-export type InsertIotEmergencyTrigger = z.infer<typeof insertIotEmergencyTriggerSchema>;
-
-
-// Parent notifications for child activities
-export const parentNotifications = pgTable("parent_notifications", {
-  id: serial("id").primaryKey(),
-  parentUserId: varchar("parent_user_id").notNull(),
-  childUserId: varchar("child_user_id").notNull(),
-  type: varchar("type").notNull(), // 'emergency', 'location_update', 'safe_arrival', 'app_usage'
-  title: varchar("title").notNull(),
-  message: text("message").notNull(),
-  data: jsonb("data"), // Additional structured data
-  isRead: boolean("is_read").default(false),
-  priority: varchar("priority").notNull().default("normal"), // 'low', 'normal', 'high', 'critical'
-  createdAt: timestamp("created_at").defaultNow(),
-  readAt: timestamp("read_at"),
-});
-
-// Family safety settings
-export const familySettings = pgTable("family_settings", {
-  id: serial("id").primaryKey(),
-  familyId: varchar("family_id").notNull(), // Shared family identifier
-  parentUserId: varchar("parent_user_id").notNull(),
-  childUserId: varchar("child_user_id").notNull(),
-  autoLocationSharing: boolean("auto_location_sharing").default(true),
-  emergencyAutoNotify: boolean("emergency_auto_notify").default(true),
-  safeZoneNotifications: boolean("safe_zone_notifications").default(true),
-  allowLiveTracking: boolean("allow_live_tracking").default(false),
-  allowEmergencyOverride: boolean("allow_emergency_override").default(true),
-  quietHours: jsonb("quiet_hours"), // { start: "22:00", end: "07:00" }
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Schema validations for family connections
-export const insertFamilyConnectionSchemaV2 = createInsertSchema(familyConnections).omit({
+export const insertFamilyConnectionSchemaV2 = familyConnectionSchema.omit({
   id: true,
   createdAt: true,
   acceptedAt: true,
-}).extend({
-  inviteExpiry: z.date().optional()
 });
 
-export const insertParentNotificationSchema = createInsertSchema(parentNotifications).omit({
+export const insertParentNotificationSchema = parentNotificationSchema.omit({
   id: true,
   createdAt: true,
   readAt: true,
 });
 
-export const insertFamilySettingsSchema = createInsertSchema(familySettings).omit({
+export const insertFamilySettingsSchema = familySettingsSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-// Types for family connections
-export type FamilyConnection = typeof familyConnections.$inferSelect;
+// --- Types ---
+
+export type User = z.infer<typeof userSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
+export type EmergencyContact = z.infer<typeof emergencyContactSchema>;
+export type InsertEmergencyContact = z.infer<typeof insertEmergencyContactSchema>;
+export type EmergencyAlert = z.infer<typeof emergencyAlertSchema>;
+export type InsertEmergencyAlert = z.infer<typeof insertEmergencyAlertSchema>;
+export type CommunityAlert = z.infer<typeof communityAlertSchema>;
+export type InsertCommunityAlert = z.infer<typeof insertCommunityAlertSchema>;
+export type SafeZone = z.infer<typeof safeZoneSchema>;
+export type InsertSafeZone = z.infer<typeof insertSafeZoneSchema>;
+export type LiveStream = z.infer<typeof liveStreamSchema>;
+export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
+export type Destination = z.infer<typeof destinationSchema>;
+export type InsertDestination = z.infer<typeof insertDestinationSchema>;
+export type HomeLocation = z.infer<typeof homeLocationSchema>;
+export type InsertHomeLocation = z.infer<typeof insertHomeLocationSchema>;
+export type OtpVerification = z.infer<typeof otpVerificationSchema>;
+export type InsertOtpVerification = z.infer<typeof insertOtpVerificationSchema>;
+export type IotDevice = z.infer<typeof iotDeviceSchema>;
+export type InsertIotDevice = z.infer<typeof insertIotDeviceSchema>;
+export type HealthMetric = z.infer<typeof healthMetricSchema>;
+export type InsertHealthMetric = z.infer<typeof insertHealthMetricSchema>;
+export type StressAnalysis = z.infer<typeof stressAnalysisSchema>;
+export type InsertStressAnalysis = z.infer<typeof insertStressAnalysisSchema>;
+export type IotEmergencyTrigger = z.infer<typeof iotEmergencyTriggerSchema>;
+export type InsertIotEmergencyTrigger = z.infer<typeof insertIotEmergencyTriggerSchema>;
+export type FamilyConnection = z.infer<typeof familyConnectionSchema>;
 export type InsertFamilyConnection = z.infer<typeof insertFamilyConnectionSchemaV2>;
-export type AlertHistory = typeof alertHistory.$inferSelect;
-export type ParentNotification = typeof parentNotifications.$inferSelect;
+export type ParentNotification = z.infer<typeof parentNotificationSchema>;
 export type InsertParentNotification = z.infer<typeof insertParentNotificationSchema>;
-export type FamilySettings = typeof familySettings.$inferSelect;
+export type FamilySettings = z.infer<typeof familySettingsSchema>;
 export type InsertFamilySettings = z.infer<typeof insertFamilySettingsSchema>;
-
-// Adding missing exports for voicePatterns and locationTracking
-
-export const voicePatterns = pgTable("voice_patterns", {
-  id: serial("id").primaryKey(),
-  pattern: text("pattern").notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const locationTracking = pgTable("location_tracking", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
-  accuracy: real("accuracy"),
-  altitude: real("altitude"),
-  heading: real("heading"),
-  speed: real("speed"),
-  address: text("address"),
-  isEmergency: boolean("is_emergency").default(false),
-  emergencyAlertId: integer("emergency_alert_id").references(() => emergencyAlerts.id),
-  batteryLevel: integer("battery_level"),
-  timestamp: timestamp("timestamp").defaultNow(),
-});
+export type VoicePattern = z.infer<typeof voicePatternSchema>;
+export type LocationTracking = z.infer<typeof locationTrackingSchema>;

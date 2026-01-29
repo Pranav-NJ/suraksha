@@ -6,15 +6,15 @@ import fs from "fs";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { familyConnections, emergencyAlerts } from "@shared/schema";
-import type { Destination, EmergencyAlert, EmergencyContact, FamilyConnection, LiveStream } from "@shared/schema";
+import { familyConnections, emergencyAlerts } from "./db/schema";
+import type { Destination, EmergencyAlert, EmergencyContact, FamilyConnection, LiveStream } from "./db/schema";
 import { db } from "./db";
 import { eq, and, or, desc, inArray } from "drizzle-orm";
 import { generateOTP, sendWhatsAppOTP, sendEmailOTP, sendWhatsAppEmergency, sendEmailAlert } from "./whatsappService";
 import { sendSMS, sendSMSOTP, sendSMSEmergency, sendSMSLiveLocation } from "./smsService";
 import { initializeWebSocket } from "./services/websocket";
-import { 
-  insertEmergencyContactSchema, 
+import {
+  insertEmergencyContactSchema,
   insertEmergencyAlertSchema,
   insertCommunityAlertSchema,
   insertSafeZoneSchema,
@@ -25,7 +25,7 @@ import {
   insertStressAnalysisSchema,
   insertOtpVerificationSchema,
   upsertUserSchema
-} from "@shared/schema";
+} from "./db/schema";
 
 interface CustomUser {
   id: string;
@@ -40,31 +40,31 @@ interface CustomRequest extends Request {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
-  
+
   // Generate connection code for family linking
   app.post("/api/user/connection-code", async (req, res) => {
     try {
       const { userId, connectionCode } = req.body;
-      
+
       if (!userId || !connectionCode) {
         return res.status(400).json({ message: "Missing userId or connectionCode" });
       }
 
       // Update user with the connection code
       await storage.updateUser(userId, { familyConnectionCode: connectionCode });
-      
+
       res.json({ success: true, connectionCode });
     } catch (error) {
       console.error('Error generating connection code:', error);
       res.status(500).json({ message: "Failed to generate connection code" });
     }
   });
-  
+
   // Configure multer for file uploads
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -76,17 +76,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cb(null, true);
     }
   });
-  
+
   // WhatsApp webhook endpoints (must be first to avoid middleware interference)
   app.get('/webhook/whatsapp', (req, res) => {
     // Verify webhook with Meta
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-    
+
     // Verify token (use this token when configuring webhook in Meta)
     const VERIFY_TOKEN = 'sakhi_suraksha_webhook_token_2024';
-    
+
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       console.log('WhatsApp webhook verified successfully');
       res.status(200).send(challenge);
@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/webhook/whatsapp', (req, res) => {
     try {
       const body = req.body;
-      
+
       // Check if this is a WhatsApp webhook event
       if (body.object === 'whatsapp_business_account') {
         body.entry?.forEach((entry: any) => {
@@ -107,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (change.field === 'messages') {
               const messages = change.value?.messages;
               const statuses = change.value?.statuses;
-              
+
               // Handle incoming messages
               if (messages) {
                 messages.forEach((message: any) => {
@@ -119,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                 });
               }
-              
+
               // Handle message status updates (sent, delivered, read)
               if (statuses) {
                 statuses.forEach((status: any) => {
@@ -134,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         });
-        
+
         res.status(200).send('OK');
       } else {
         res.status(404).send('Not Found');
@@ -152,10 +152,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/send-otp', async (req, res) => {
     try {
       const { phoneNumber, email } = req.body;
-      
+
       // Generate OTP
       const otp = generateOTP();
-      
+
       // Store OTP verification record
       await storage.createOtpVerification({
         identifier: phoneNumber,
@@ -163,23 +163,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         otp,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
       });
-      
+
       await storage.createOtpVerification({
         identifier: email,
         type: 'email',
         otp,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)
       });
-      
+
       // Send OTP via SMS and Email
       const smsResult = await sendSMSOTP(phoneNumber, otp);
       const emailResult = await sendEmailOTP(email, otp);
-      
+
       res.json({
         success: smsResult || emailResult,
         message: 'OTP sent successfully'
       });
-      
+
     } catch (error) {
       console.error('Send OTP error:', error);
       res.status(500).json({ message: 'Failed to send OTP' });
@@ -189,17 +189,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/verify-otp', async (req, res) => {
     try {
       const { phoneNumber, email, otp } = req.body;
-      
+
       // Verify OTP for both phone and email
       const phoneVerified = await storage.verifyOtp(phoneNumber, 'phone', otp);
       const emailVerified = await storage.verifyOtp(email, 'email', otp);
-      
+
       if (phoneVerified && emailVerified) {
         res.json({ success: true, message: 'OTP verified successfully' });
       } else {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
       }
-      
+
     } catch (error) {
       console.error('Verify OTP error:', error);
       res.status(500).json({ message: 'Failed to verify OTP' });
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/create-profile', async (req, res) => {
     try {
       const { phoneNumber, email, firstName, lastName, password } = req.body;
-      
+
       // Create user profile
       const user = await storage.upsertUser({
         id: `user_${Date.now()}`,
@@ -219,13 +219,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         password // In production, hash this password
       });
-      
+
       res.json({
         success: true,
         user,
         message: 'Profile created successfully'
       });
-      
+
     } catch (error) {
       console.error('Create profile error:', error);
       res.status(500).json({ message: 'Failed to create profile' });
@@ -251,12 +251,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.query.userId || 'demo-user';
       const profileData = { ...req.body, id: userId };
       const validatedData = upsertUserSchema.parse(profileData);
-      
+
       const user = await storage.upsertUser(validatedData);
-      
+
       // Return the user's actual ID in case it switched to an existing user
-      res.json({ 
-        message: "Profile saved successfully", 
+      res.json({
+        message: "Profile saved successfully",
         user,
         actualUserId: user.id // Include the actual user ID for frontend session management
       });
@@ -270,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Extract userId from query parameter (set by frontend)
       const userId = req.query.userId || 'demo-user';
-      
+
       try {
         const user = await storage.getUser(userId as string);
         if (user) {
@@ -280,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (dbError) {
         console.log('Database unavailable, using fallback data');
       }
-      
+
       // Fallback demo user data when database is unavailable
       const demoUser = {
         id: "demo-user",
@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: "2025-06-04T11:26:23.291Z",
         updatedAt: "2025-06-05T12:50:52.638Z"
       };
-      
+
       res.json(demoUser);
     } catch (error) {
       console.error('Profile fetch error:', error);
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/places/nearby", async (req, res) => {
     try {
       const { lat, lng, type, radius = 5000 } = req.query;
-      
+
       if (!lat || !lng || !type) {
         return res.status(400).json({ error: "Missing required parameters: lat, lng, type" });
       }
@@ -491,7 +491,7 @@ out center;
 
       // Use Google Places Nearby Search API with type filter for better accuracy
       let placesUrl;
-      
+
       // Map keywords to Google Places types for better results
       const typeMapping: { [key: string]: string } = {
         'police station': 'police',
@@ -499,15 +499,15 @@ out center;
         'metro station': 'subway_station',
         'shopping mall': 'shopping_mall'
       };
-      
+
       const placeType = typeMapping[type as string];
-      
+
       if (placeType) {
         placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${placeType}&key=${apiKey}`;
       } else {
         placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&keyword=${encodeURIComponent(type as string)}&key=${apiKey}`;
       }
-      
+
       const response = await fetch(placesUrl);
       const data = await response.json();
 
@@ -595,7 +595,7 @@ out center;`.trim();
   app.get("/api/places/search", async (req, res) => {
     try {
       const { query } = req.query;
-      
+
       if (!query) {
         return res.status(400).json({ error: "Missing required parameter: query" });
       }
@@ -655,7 +655,7 @@ out center;`.trim();
 
       // Use Google Places Text Search API for finding specific locations
       const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query as string)}&key=${apiKey}`;
-      
+
       const response = await fetch(placesUrl);
       const data = await response.json();
 
@@ -720,7 +720,7 @@ out center;`.trim();
   app.get("/api/emergency-contacts", async (req, res) => {
     try {
       const userId = req.query.userId || 'demo-user';
-      
+
       const contacts = await storage.getEmergencyContacts(userId as string);
       res.json(contacts);
     } catch (error) {
@@ -772,7 +772,7 @@ out center;`.trim();
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
       }
-      res.status(400).json({ 
+      res.status(400).json({
         message: "Failed to create emergency contact",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -823,22 +823,22 @@ out center;`.trim();
         address: req.body.location?.address || req.body.address || 'Emergency Location - Coordinates tracked',
         triggerType: req.body.triggerType // Don't override the triggerType - keep original value
       };
-      
+
       console.log('Emergency alert request data:', requestData);
-      
+
       const validatedData = insertEmergencyAlertSchema.parse(requestData);
       const alert = await storage.createEmergencyAlert(validatedData);
-      
+
       // Trigger emergency protocol with live streaming
       await triggerEmergencyProtocol(alert);
-      
+
       res.status(201).json(alert);
     } catch (error) {
       console.error('Emergency alert error:', error);
       if (error instanceof Error) {
         console.error('Error details:', error.message);
       }
-      res.status(400).json({ 
+      res.status(400).json({
         message: "Failed to create emergency alert",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -856,10 +856,10 @@ out center;`.trim();
         longitude: req.body.longitude,
         address: req.body.address || 'Emergency location'
       });
-      
+
       // Trigger emergency protocol to send messages to contacts
       await triggerEmergencyProtocol(alert);
-      
+
       res.status(201).json(alert);
     } catch (error) {
       console.error('Manual SOS error:', error);
@@ -898,7 +898,7 @@ out center;`.trim();
       const latitude = parseFloat(lat as string);
       const longitude = parseFloat(lng as string);
       const searchRadius = parseInt(radius as string);
-      
+
       const alerts = await storage.getCommunityAlerts(latitude, longitude, searchRadius);
       res.json(alerts);
     } catch (error) {
@@ -921,12 +921,12 @@ out center;`.trim();
   app.post("/api/safety-reports", async (req, res) => {
     try {
       const { type, description, location, severity = 'medium' } = req.body;
-      
+
       // Get user ID if authenticated, otherwise null for anonymous
       const isAuthed = typeof (req as any).isAuthenticated === "function" ? (req as any).isAuthenticated() : false;
       const userId = isAuthed ? (req as any).user?.claims?.sub : null;
       const reportedBy = userId ? 'user' : 'anonymous';
-      
+
       // Convert safety report to community alert format
       const communityAlert = {
         userId: userId,
@@ -941,17 +941,17 @@ out center;`.trim();
 
       const validatedData = insertCommunityAlertSchema.parse(communityAlert);
       const alert = await storage.createCommunityAlert(validatedData);
-      
-      res.status(201).json({ 
-        success: true, 
+
+      res.status(201).json({
+        success: true,
         message: "Safety report submitted successfully",
-        alertId: alert.id 
+        alertId: alert.id
       });
     } catch (error) {
       console.error('Safety report error:', error);
-      res.status(400).json({ 
-        success: false, 
-        message: "Failed to submit safety report" 
+      res.status(400).json({
+        success: false,
+        message: "Failed to submit safety report"
       });
     }
   });
@@ -981,7 +981,7 @@ out center;`.trim();
   app.post("/api/voice/analyze", async (req, res) => {
     try {
       const { audioData, userId } = req.body;
-      
+
       if (!audioData) {
         return res.status(400).json({ message: "Audio data is required" });
       }
@@ -1005,13 +1005,13 @@ out center;`.trim();
       const distressKeywords = ['help', 'emergency', 'danger', 'attack', 'scared'];
       const transcript = audioData.toLowerCase();
       const detectedKeywords = distressKeywords.filter(kw => transcript.includes(kw));
-      
+
       if (detectedKeywords.length > 0) {
         analysis.isEmergency = true;
         analysis.confidence = Math.min(0.9, detectedKeywords.length * 0.3);
         analysis.keywords = detectedKeywords;
         analysis.sentiment = "distressed";
-        
+
         // Trigger emergency alert if confidence is high
         if (analysis.confidence > 0.6 && userId) {
           await storage.createEmergencyAlert({
@@ -1038,13 +1038,13 @@ out center;`.trim();
       }
 
       const userId = req.body.userId || 'demo-user';
-      
+
       // Save audio file reference
       const audioPath = `emergency-recordings/voice_${Date.now()}.webm`;
-      
+
       // Mock transcription (replace with actual service like AssemblyAI)
       const transcription = "Audio uploaded successfully";
-      
+
       res.json({
         success: true,
         transcription,
@@ -1061,7 +1061,7 @@ out center;`.trim();
   app.get("/api/nearby/safe-places", async (req, res) => {
     try {
       const { latitude, longitude, radius = 5000 } = req.query;
-      
+
       if (!latitude || !longitude) {
         return res.status(400).json({ message: "Latitude and longitude are required" });
       }
@@ -1113,7 +1113,7 @@ out center;`.trim();
   app.get("/api/nearby/community-alerts", async (req, res) => {
     try {
       const { latitude, longitude, radius = 5000 } = req.query;
-      
+
       if (!latitude || !longitude) {
         return res.status(400).json({ message: "Latitude and longitude are required" });
       }
@@ -1138,7 +1138,7 @@ out center;`.trim();
       if (req.isAuthenticated?.() && req.user?.claims?.sub) {
         userId = req.user.claims.sub;
       }
-      
+
       const destinations = await storage.getDestinations(userId);
       res.json(destinations);
     } catch (error) {
@@ -1201,7 +1201,7 @@ out center;`.trim();
       }
 
       const { latitude, longitude, address } = req.body;
-      
+
       // Store as a destination marked as favorite (home)
       const homeDestination = {
         userId: userId,
@@ -1225,10 +1225,10 @@ out center;`.trim();
     try {
       // Get userId from query parameter (sent by frontend session management)
       const userId = typeof req.query.userId === "string" ? req.query.userId : 'demo-user';
-      
+
       const destinations = await storage.getDestinations(userId);
       const homeLocation = destinations.find((dest: Destination) => dest.isFavorite === true);
-      
+
       if (homeLocation) {
         res.json(homeLocation);
       } else {
@@ -1278,7 +1278,7 @@ out center;`.trim();
   app.post("/api/auth/send-phone-otp", async (req, res) => {
     try {
       const { phoneNumber } = req.body;
-      
+
       if (!phoneNumber) {
         return res.status(400).json({ message: "Phone number is required" });
       }
@@ -1297,14 +1297,14 @@ out center;`.trim();
 
       // Try WhatsApp first, fallback to manual verification for testing
       const whatsappSent = await sendWhatsAppOTP(phoneNumber, otp);
-      
+
       console.log(`SMS OTP for ${phoneNumber}: ${otp}`);
-      
+
       if (whatsappSent) {
         res.json({ message: "OTP sent via WhatsApp successfully" });
       } else {
         // For testing: display OTP in response when WhatsApp is not configured
-        res.json({ 
+        res.json({
           message: "WhatsApp configuration pending. Use OTP for verification",
           testOtp: otp // Temporary for testing
         });
@@ -1318,7 +1318,7 @@ out center;`.trim();
   app.post("/api/auth/send-email-otp", async (req, res) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
@@ -1338,9 +1338,9 @@ out center;`.trim();
       // Send OTP via SMTP2GO email service
       const otpMessage = `Your Sakhi Suraksha verification code is: ${otp}. This code will expire in 10 minutes.`;
       const emailSent = await sendEmailOTP(email, otpMessage);
-      
+
       console.log(`Email OTP for ${email}: ${otp}`);
-      
+
       if (emailSent) {
         res.json({ message: "OTP sent successfully" });
       } else {
@@ -1355,13 +1355,13 @@ out center;`.trim();
   app.post("/api/auth/verify-phone-otp", async (req, res) => {
     try {
       const { phoneNumber, otp } = req.body;
-      
+
       if (!phoneNumber || !otp) {
         return res.status(400).json({ message: "Phone number and OTP are required" });
       }
 
       const isValid = await storage.verifyOtp(phoneNumber, 'phone', otp);
-      
+
       if (isValid) {
         res.json({ message: "Phone number verified successfully" });
       } else {
@@ -1376,13 +1376,13 @@ out center;`.trim();
   app.post("/api/auth/verify-email-otp", async (req, res) => {
     try {
       const { email, otp } = req.body;
-      
+
       if (!email || !otp) {
         return res.status(400).json({ message: "Email and OTP are required" });
       }
 
       const isValid = await storage.verifyOtp(email, 'email', otp);
-      
+
       if (isValid) {
         res.json({ message: "Email verified successfully" });
       } else {
@@ -1398,7 +1398,7 @@ out center;`.trim();
   app.post("/api/send-sms", async (req, res) => {
     try {
       const { phoneNumber, message } = req.body;
-      
+
       // In production, integrate with Twilio or similar SMS service
       // const twilioClient = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
       // await twilioClient.messages.create({
@@ -1406,7 +1406,7 @@ out center;`.trim();
       //   from: process.env.TWILIO_PHONE_NUMBER,
       //   to: phoneNumber
       // });
-      
+
       console.log(`SMS sent to ${phoneNumber}: ${message}`);
       res.json({ success: true, message: "SMS sent successfully" });
     } catch (error) {
@@ -1466,7 +1466,7 @@ out center;`.trim();
     try {
       const deviceId = parseInt(req.params.id);
       const success = await storage.connectDevice(deviceId);
-      
+
       if (success) {
         res.json({ message: "Device connected successfully" });
       } else {
@@ -1482,7 +1482,7 @@ out center;`.trim();
     try {
       const deviceId = parseInt(req.params.id);
       const success = await storage.disconnectDevice(deviceId);
-      
+
       if (success) {
         res.json({ message: "Device disconnected successfully" });
       } else {
@@ -1498,7 +1498,7 @@ out center;`.trim();
     try {
       const deviceId = parseInt(req.params.id);
       const success = await storage.deleteIotDevice(deviceId);
-      
+
       if (success) {
         res.json({ message: "Device deleted successfully" });
       } else {
@@ -1515,13 +1515,13 @@ out center;`.trim();
     try {
       const deviceId = parseInt(req.params.id);
       const { batteryLevel } = req.body;
-      
+
       if (typeof batteryLevel !== 'number' || batteryLevel < 0 || batteryLevel > 100) {
         return res.status(400).json({ message: "Invalid battery level" });
       }
-      
+
       const success = await storage.updateDeviceBattery(deviceId, batteryLevel);
-      
+
       if (success) {
         res.json({ message: "Battery level updated successfully" });
       } else {
@@ -1612,17 +1612,17 @@ out center;`.trim();
   // Emergency protocol trigger with live streaming
   // Debounce mechanism for preventing duplicate messages
   const sentMessages = new Set<string>();
-  
+
   async function triggerEmergencyProtocol(alert: any) {
     try {
       console.log(`Triggering emergency protocol for alert ${alert.id}`);
-      
+
       // Get user and emergency contacts
       const user = await storage.getUser(alert.userId);
       if (!user) return;
 
       const contacts = await storage.getEmergencyContacts(alert.userId);
-      
+
       if (contacts.length === 0) {
         console.log('No emergency contacts configured');
         return;
@@ -1631,7 +1631,7 @@ out center;`.trim();
       // Create live stream session
       const streamUrl = `wss://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/ws/stream/${alert.id}`;
       const shareLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost'}/emergency/${alert.id}`;
-      
+
       const liveStream = await storage.createLiveStream({
         userId: alert.userId,
         emergencyAlertId: alert.id,
@@ -1642,14 +1642,14 @@ out center;`.trim();
 
       // Generate emergency message
       const locationText = alert.address || `${alert.latitude}, ${alert.longitude}`;
-      const currentTime = new Date().toLocaleString('en-IN', { 
+      const currentTime = new Date().toLocaleString('en-IN', {
         timeZone: 'Asia/Kolkata',
         dateStyle: 'medium',
         timeStyle: 'short'
       });
-      
+
       let message = `🚨 EMERGENCY ALERT 🚨\n\n`;
-      
+
       if (alert.triggerType === 'voice_detection') {
         message += `VOICE DISTRESS DETECTED\n`;
         if (alert.audioRecordingUrl) {
@@ -1665,7 +1665,7 @@ out center;`.trim();
       } else {
         message += `SOS BUTTON ACTIVATED\n`;
       }
-      
+
       message += `\nChild: Pranav\n`;
       message += `Time: ${currentTime}\n`;
       message += `Location: ${locationText}\n`;
@@ -1678,7 +1678,7 @@ out center;`.trim();
       const alertKey = `${alert.id}_${alert.triggerType}`;
       if (!sentMessages.has(alertKey)) {
         sentMessages.add(alertKey);
-        
+
         for (const contact of contacts) {
           try {
             let whatsappSuccess = false;
@@ -1705,7 +1705,7 @@ out center;`.trim();
             console.error(`Failed to send alerts to ${contact.name}:`, error);
           }
         }
-        
+
         // Clear sent messages after 5 minutes to allow new alerts
         setTimeout(() => {
           sentMessages.delete(alertKey);
@@ -1716,7 +1716,7 @@ out center;`.trim();
 
       // Update user location sharing status
       await storage.updateUser(alert.userId, { isLocationSharingActive: true });
-      
+
       // Broadcast to WebSocket clients
       wss.clients.forEach(client => {
         if (client.readyState === 1) { // WebSocket.OPEN
@@ -1726,16 +1726,16 @@ out center;`.trim();
           }));
         }
       });
-      
+
       console.log(`Emergency protocol completed for alert ${alert.id} - messages sent to ${contacts.length} contacts`);
-      
+
     } catch (error) {
       console.error("Failed to trigger emergency protocol:", error);
     }
   }
 
   const httpServer = createServer(app);
-  
+
   // WebSocket server for live streaming and real-time communication
   const wsService = initializeWebSocket(httpServer);
   const wss = wsService.getWss();
@@ -1744,26 +1744,26 @@ out center;`.trim();
   function getAlertMessage(triggerType: string, location?: any, timestamp?: string, audioData?: string): string {
     const now = new Date();
     const alertTime = timestamp ? new Date(timestamp) : now;
-    const timeStr = alertTime.toLocaleString('en-IN', { 
+    const timeStr = alertTime.toLocaleString('en-IN', {
       timeZone: 'Asia/Kolkata',
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
-    
-    const locationLink = location ? 
-      `📍 Current Location: ${location.address} (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})` : 
+
+    const locationLink = location ?
+      `📍 Current Location: ${location.address} (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)})` :
       '📍 Location: Coordinates being tracked';
-    
+
     const liveStreamText = '🔴 Live Stream Available | 📱 Real-time monitoring active';
-    
+
     switch (triggerType) {
       case 'manual_button':
-      case 'sos_manual': 
+      case 'sos_manual':
         return `🚨 MANUAL SOS ACTIVATED\n${timeStr}\n\nUser manually triggered emergency alert - Immediate assistance needed\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'voice_detection': 
+      case 'voice_detection':
         const detectedText = audioData ? (() => {
           try {
             const parsedData = JSON.parse(audioData);
@@ -1773,17 +1773,17 @@ out center;`.trim();
           }
         })() : 'Voice distress detected';
         return `🎤 VOICE DISTRESS DETECTED\n${timeStr}\n\nDetected Words: "${detectedText}"\nTrigger: Voice analysis detected distress keywords\nStress Level: HIGH | Automatic activation\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'geofence_exit': 
+      case 'geofence_exit':
         return `🚧 SAFE ZONE BREACH\n${timeStr}\n\nLeft designated safe zone after 10 PM\nAutomatic trigger - Location monitoring active\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'shake_detection': 
+      case 'shake_detection':
         return `📳 EMERGENCY GESTURE DETECTED\n${timeStr}\n\nDevice motion indicates distress pattern\nAutomatic trigger - Shake gesture recognized\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'panic_button': 
+      case 'panic_button':
         return `🔴 PANIC BUTTON ACTIVATED\n${timeStr}\n\nSilent alarm triggered manually\nImmediate response required\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'audio_trigger': 
+      case 'audio_trigger':
         return `🎤 VOICE DISTRESS ANALYSIS\n${timeStr}\n\nDetected phrase: "I feel unsafe, please help"\nAutomatic emergency protocol initiated\n\n${locationLink}\n\n${liveStreamText}`;
-      case 'pattern_recognition': 
+      case 'pattern_recognition':
         return `🤖 AI BEHAVIOR ANALYSIS\n${timeStr}\n\nUnusual movement pattern detected\nAutomatic trigger - Possible emergency situation\n\n${locationLink}\n\n${liveStreamText}`;
-      default: 
+      default:
         return `⚠️ EMERGENCY ALERT\n${timeStr}\n\nEmergency situation detected\nAutomatic monitoring active\n\n${locationLink}\n\n${liveStreamText}`;
     }
   }
@@ -1792,27 +1792,27 @@ out center;`.trim();
   app.get("/api/parent/children", async (req, res) => {
     try {
       // For demo, use demo-user as parent. In production, get from authenticated session
-      const parentUserId = 'demo-user'; 
-      
+      const parentUserId = 'demo-user';
+
       // Get connected children from database and filter duplicates
       const allConnections: FamilyConnection[] = await storage.getFamilyConnections(parentUserId);
       const connections = allConnections.filter((connection: FamilyConnection, index: number, arr: FamilyConnection[]) => {
         // Keep only the first connection per childUserId to prevent duplicates
         return index === arr.findIndex((c: FamilyConnection) => c.childUserId === connection.childUserId);
       });
-      
+
       // Get real user data for each connected child
       const children = await Promise.all(connections.map(async (connection: any) => {
         const user = await storage.getUser(connection.childUserId);
         const homeLocation = await storage.getHomeLocation(connection.childUserId);
         const latestHealth = await storage.getLatestHealthMetrics(connection.childUserId);
-        
+
         // Check for recent activity and emergency status
         const recentAlerts: EmergencyAlert[] = await storage.getEmergencyAlerts(connection.childUserId);
         const hasActiveEmergency = recentAlerts.filter((alert: EmergencyAlert) => !alert.isResolved).length > 0;
         const hasRecentActivity = recentAlerts.length > 0;
         const isOnline = hasRecentActivity || latestHealth;
-        
+
         // Determine status: emergency takes priority, then safe/offline
         let status: 'safe' | 'emergency' | 'offline' = 'offline';
         if (hasActiveEmergency) {
@@ -1820,12 +1820,12 @@ out center;`.trim();
         } else if (isOnline) {
           status = 'safe';
         }
-        
+
         // Use proper name mapping for known children
         let childName = 'Child';
         let childEmail = 'child@example.com';
         let childPhone = 'Not provided';
-        
+
         if (connection.childUserId === 'sharanya-child') {
           childName = 'Sharanya';
           childEmail = 'sharanya@example.com';
@@ -1835,7 +1835,7 @@ out center;`.trim();
           childEmail = user.email || 'child@example.com';
           childPhone = user.phoneNumber || 'Not provided';
         }
-        
+
         return {
           id: connection.id,
           name: childName,
@@ -1861,7 +1861,7 @@ out center;`.trim();
           hasActiveAlerts: recentAlerts.filter((alert: EmergencyAlert) => !alert.isResolved).length > 0
         };
       }));
-      
+
       res.json(children);
     } catch (error) {
       console.error('Error fetching parent children:', error);
@@ -1875,7 +1875,7 @@ out center;`.trim();
       const alertId = parseInt(req.params.id);
       const alerts: EmergencyAlert[] = await storage.getEmergencyAlerts('demo-user');
       const alert = alerts.find((a: EmergencyAlert) => a.id === alertId);
-      
+
       if (!alert) {
         return res.status(404).json({ message: "Emergency alert not found" });
       }
@@ -1916,11 +1916,11 @@ out center;`.trim();
     try {
       // For demo purposes, directly fetch alerts from demo-user since parent-child connection is simulated
       const { status } = req.query; // 'active', 'resolved', or undefined for all
-      
+
       // Get emergency alerts from the main user (simulating child alerts for parent view)
       const childAlerts: EmergencyAlert[] = await storage.getEmergencyAlerts('demo-user');
       const user = await storage.getUser('demo-user');
-      
+
       const alerts: Array<{
         id: number;
         childName: string;
@@ -1936,7 +1936,7 @@ out center;`.trim();
         liveStreamUrl: string | null;
         canStartStream: boolean;
       }> = [];
-      
+
       // Format emergency alerts using correct schema fields
       childAlerts.forEach((alert: EmergencyAlert) => {
         try {
@@ -1984,19 +1984,19 @@ out center;`.trim();
           };
 
           // Filter based on status query parameter
-          if (!status || 
-              (status === 'active' && !alert.isResolved) ||
-              (status === 'resolved' && alert.isResolved)) {
+          if (!status ||
+            (status === 'active' && !alert.isResolved) ||
+            (status === 'resolved' && alert.isResolved)) {
             alerts.push(alertData);
           }
         } catch (alertError) {
           console.error('Error processing alert:', alert.id, alertError);
         }
       });
-      
+
       // Sort by timestamp, most recent first
       alerts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
+
       res.json(alerts);
     } catch (error) {
       console.error('Error fetching emergency alerts:', error);
@@ -2007,27 +2007,27 @@ out center;`.trim();
   app.post("/api/parent/connect-child", async (req, res) => {
     try {
       const { connectionCode } = req.body;
-      
+
       if (!connectionCode) {
         return res.status(400).json({ message: "Connection code is required" });
       }
-      
+
       // Validate connection code format
       if (!connectionCode.startsWith('SK') || connectionCode.length < 10) {
         return res.status(400).json({ message: "Invalid connection code format" });
       }
-      
+
       console.log(`Parent connecting to child with code: ${connectionCode}`);
-      
+
       const parentUserId = 'demo-user';
       const childUserId = 'sharanya-child';
-      
+
       // Check if connection already exists to prevent duplicates
       const existingConnections: FamilyConnection[] = await storage.getFamilyConnections(parentUserId);
-      const existingConnection = existingConnections.find((conn: FamilyConnection) => 
+      const existingConnection = existingConnections.find((conn: FamilyConnection) =>
         conn.childUserId === childUserId || conn.inviteCode === connectionCode
       );
-      
+
       let connection;
       if (existingConnection) {
         // Update existing connection instead of creating new one
@@ -2056,7 +2056,7 @@ out center;`.trim();
           }
         });
       }
-      
+
       if (!connection) {
         return res.status(500).json({ message: "Failed to create connection" });
       }
@@ -2064,7 +2064,7 @@ out center;`.trim();
       // Get real user data for response
       const user = await storage.getUser(childUserId);
       const homeLocation = await storage.getHomeLocation(childUserId);
-      
+
       const childProfile = {
         id: connection.id,
         userId: childUserId,
@@ -2083,7 +2083,7 @@ out center;`.trim();
         } : null,
         profileImage: user?.profileImageUrl
       };
-      
+
       res.json({
         success: true,
         message: "Child connected successfully",
@@ -2099,12 +2099,12 @@ out center;`.trim();
   app.patch("/api/emergency-alerts/:id/resolve", async (req, res) => {
     try {
       const alertId = parseInt(req.params.id);
-      
+
       // Update the alert as resolved
-      const updated = await storage.updateEmergencyAlert(alertId, { 
+      const updated = await storage.updateEmergencyAlert(alertId, {
         isResolved: true
       });
-      
+
       if (updated) {
         // Send WebSocket message to child device to stop video recording
         wss.clients.forEach(client => {
@@ -2116,9 +2116,9 @@ out center;`.trim();
             }));
           }
         });
-        
+
         console.log(`Emergency resolved signal sent to child devices for alert ${alertId}`);
-        
+
         res.json({
           success: true,
           message: "Alert resolved successfully"
@@ -2135,30 +2135,30 @@ out center;`.trim();
   app.post("/api/parent/emergency-alerts/:id/resolve", async (req, res) => {
     try {
       const alertId = parseInt(req.params.id);
-      
+
       // Get the alert to check for active live stream
       const alert = await storage.getEmergencyAlert(alertId);
       if (!alert) {
         return res.status(404).json({ message: "Alert not found" });
       }
-      
+
       // If there was an active live stream, save the recording to history
       let videoRecordingUrl = null;
       if (alert) {
         // Generate video recording URL for the resolved emergency
         const streamId = `emergency_${alertId}`;
         videoRecordingUrl = `/api/emergency-recordings/${streamId}/video.mp4`;
-        
+
         // Store the video recording in the alert history
         console.log(`Saving video recording for resolved alert ${alertId}: ${videoRecordingUrl}`);
       }
-      
+
       // Update the alert as resolved and add video recording URL
-      const updated = await storage.updateEmergencyAlert(alertId, { 
+      const updated = await storage.updateEmergencyAlert(alertId, {
         isResolved: true,
         videoRecordingUrl: videoRecordingUrl
       });
-      
+
       if (updated) {
         // Send WebSocket message to child device to stop video recording
         wss.clients.forEach(client => {
@@ -2171,9 +2171,9 @@ out center;`.trim();
             }));
           }
         });
-        
+
         console.log(`Emergency resolved signal sent to child devices for alert ${alertId}`);
-        
+
         res.json({
           success: true,
           message: "Alert resolved successfully",
@@ -2235,22 +2235,22 @@ out center;`.trim();
   app.post("/api/parent/start-live-stream/:childId", async (req, res) => {
     try {
       const { childId } = req.params;
-      
+
       // Get current location from home location or use GPS coordinates
       const homeLocation = await storage.getHomeLocation('demo-user');
       const currentLat = homeLocation ? Number(homeLocation.latitude) : 12.9716; // Bangalore coordinates as fallback
       const currentLng = homeLocation ? Number(homeLocation.longitude) : 77.5946;
       const currentAddress = homeLocation?.address || 'Current location - Live tracking active';
-      
+
       // Create live stream for emergency monitoring
       const streamUrl = `https://emergency-stream.sakhi.com/live/${Date.now()}`;
-      
+
       const stream = await storage.createLiveStream({
         userId: 'demo-user', // Map from childId in production
         streamUrl,
         shareLink: streamUrl
       });
-      
+
       res.json({
         success: true,
         streamId: stream.id,
@@ -2266,10 +2266,10 @@ out center;`.trim();
   app.get("/api/parent/live-location/:childId", async (req, res) => {
     try {
       const { childId } = req.params;
-      
+
       // Get current location of child from their home location
       const homeLocation = await storage.getHomeLocation('demo-user');
-      
+
       // Use actual location data instead of hardcoded coordinates
       const currentLocation = {
         lat: homeLocation ? Number(homeLocation.latitude) + (Math.random() - 0.5) * 0.001 : 12.9716, // Bangalore coordinates as fallback
@@ -2280,7 +2280,7 @@ out center;`.trim();
         speed: Math.floor(Math.random() * 20), // 0-20 km/h
         heading: Math.floor(Math.random() * 360) // 0-360 degrees
       };
-      
+
       res.json(currentLocation);
     } catch (error) {
       console.error('Error fetching live location:', error);
@@ -2291,13 +2291,13 @@ out center;`.trim();
   // OTP Verification Routes
   app.post('/api/otp/send', async (req, res) => {
     const { identifier, type } = req.body;
-    
+
     if (!identifier || !type) {
       return res.status(400).json({ message: "Identifier and type are required" });
     }
 
     const otp = generateOTP();
-    
+
     try {
       // Store OTP in database first
       await storage.createOtpVerification({
@@ -2310,9 +2310,9 @@ out center;`.trim();
       if (type === 'phone') {
         // Try SMS first for reliable delivery
         const smsSuccess = await sendSMSOTP(identifier, otp);
-        
+
         if (smsSuccess) {
-          return res.json({ 
+          return res.json({
             message: "OTP sent successfully via SMS",
             deliveryMethod: 'sms',
             success: true
@@ -2320,16 +2320,16 @@ out center;`.trim();
         } else {
           // Try WhatsApp as backup
           const whatsappSuccess = await sendWhatsAppOTP(identifier, otp);
-          
+
           if (whatsappSuccess) {
-            return res.json({ 
+            return res.json({
               message: "OTP sent successfully via WhatsApp",
               deliveryMethod: 'whatsapp',
               success: true
             });
           } else {
             console.log(`Manual OTP for ${identifier}: ${otp}`);
-            return res.json({ 
+            return res.json({
               message: "OTP delivery pending. Use manual verification",
               deliveryMethod: 'manual',
               manualOtp: otp,
@@ -2340,9 +2340,9 @@ out center;`.trim();
         }
       } else if (type === 'email') {
         const emailSuccess = await sendEmailOTP(identifier, otp);
-        
+
         if (emailSuccess) {
-          return res.json({ 
+          return res.json({
             message: "OTP sent successfully via email",
             deliveryMethod: 'email',
             success: true
@@ -2362,13 +2362,13 @@ out center;`.trim();
   app.post('/api/otp/verify', async (req, res) => {
     try {
       const { identifier, type, otp } = req.body;
-      
+
       if (!identifier || !type || !otp) {
         return res.status(400).json({ message: "Identifier, type, and OTP are required" });
       }
 
       const isValid = await storage.verifyOtp(identifier, type, otp);
-      
+
       if (isValid) {
         res.json({ message: "OTP verified successfully", verified: true });
       } else {
@@ -2385,20 +2385,20 @@ out center;`.trim();
     try {
       const { type, identifier } = req.body;
       const testOtp = "123456";
-      
+
       console.log(`Testing ${type} OTP delivery to ${identifier}`);
-      
+
       let result = false;
       if (type === 'phone') {
         result = await sendWhatsAppOTP(identifier, testOtp);
       } else if (type === 'email') {
         result = await sendEmailOTP(identifier, testOtp);
       }
-      
-      res.json({ 
-        success: result, 
+
+      res.json({
+        success: result,
         message: result ? `Test OTP sent successfully` : `Failed to send test OTP`,
-        testOtp 
+        testOtp
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -2411,16 +2411,16 @@ out center;`.trim();
   app.post('/api/emergency-alert/voice-trigger', async (req, res) => {
     try {
       const { triggerType, keyword, confidence, location } = req.body;
-      
+
       console.log(`Voice distress detected: "${keyword}" with ${confidence} confidence`);
-      
+
       // Get user's emergency contacts
       const contacts: EmergencyContact[] = await storage.getEmergencyContacts('demo-user');
-      
+
       if (contacts.length === 0) {
         return res.status(400).json({ message: 'No emergency contacts configured' });
       }
-      
+
       // Create emergency alert record
       const alert = await storage.createEmergencyAlert({
         userId: 'demo-user',
@@ -2429,7 +2429,7 @@ out center;`.trim();
         longitude: location.lng,
         address: location.address
       });
-      
+
       // Enhanced message for voice distress
       const baseMessage = `🚨 VOICE DISTRESS EMERGENCY 🚨
 AUTOMATED ALERT - Voice keyword "${keyword}" detected
@@ -2444,11 +2444,11 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
       // Send alerts to all contacts
       const alertPromises = contacts.map(async (contact: EmergencyContact) => {
         const message = baseMessage.replace('[CONTACT_NAME]', contact.name);
-        
+
         let smsSuccess = false;
         let whatsappSuccess = false;
         let emailSuccess = false;
-        
+
         // Send WhatsApp emergency alert if phone number exists
         if (contact.phoneNumber) {
           try {
@@ -2458,7 +2458,7 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
             console.error(`Voice Alert WhatsApp error for ${contact.phoneNumber}:`, error);
           }
         }
-        
+
         // Send email if email exists
         if (contact.email) {
           try {
@@ -2468,13 +2468,13 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
             console.error(`Voice Alert Email error for ${contact.email}:`, error);
           }
         }
-        
+
         return { contact: contact.name, smsSuccess, whatsappSuccess, emailSuccess };
       });
-      
+
       const results = await Promise.allSettled(alertPromises);
       const successCount = results.filter((result: PromiseSettledResult<unknown>) => result.status === 'fulfilled').length;
-      
+
       res.json({
         success: successCount > 0,
         alertsSent: successCount,
@@ -2483,7 +2483,7 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
         confidence,
         message: `Voice distress alert sent to ${successCount}/${contacts.length} contacts`
       });
-      
+
     } catch (error) {
       console.error('Voice distress alert error:', error);
       res.status(500).json({ message: 'Failed to process voice distress alert' });
@@ -2494,7 +2494,7 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
   app.post('/api/emergency/send-alert', async (req, res) => {
     try {
       const { contactId, contactName, phoneNumber, email, message, emergencyData } = req.body;
-      
+
       // Check if this exact alert was already sent to prevent duplicates
       const messageKey = `${emergencyData.triggerType}_${emergencyData.timestamp}_${phoneNumber || email}`;
       if (sentMessages.has(messageKey)) {
@@ -2507,18 +2507,18 @@ Please contact immediately or call emergency services: 100, 101, 102, 108`;
       }
 
       console.log(`Sending emergency alert to ${contactName}...`);
-      
+
       let smsSuccess = false;
       let whatsappSuccess = false;
       let emailSuccess = false;
-      
+
       // Get user profile for WhatsApp number and live location
       const user = await storage.getUser('demo-user');
       const userWhatsApp = user?.whatsappNumber || user?.phoneNumber;
-      
+
       // Create live location link
       const locationUrl = `https://www.google.com/maps?q=${emergencyData.location.lat},${emergencyData.location.lng}`;
-      
+
       // Enhanced emergency message with WhatsApp contact and live location
       const enhancedMessage = `🚨 EMERGENCY ALERT 🚨
 
@@ -2542,7 +2542,7 @@ Please respond immediately if you can assist.`;
           // Try WhatsApp first
           const whatsappResult = await sendWhatsAppEmergency(phoneNumber, enhancedMessage);
           console.log(`WhatsApp to ${phoneNumber}: ${whatsappResult ? 'SUCCESS' : 'FAILED'}`);
-          
+
           // Send SMS as backup
           const smsResult = await sendSMSEmergency(
             phoneNumber,
@@ -2550,13 +2550,13 @@ Please respond immediately if you can assist.`;
             userWhatsApp || undefined
           );
           console.log(`SMS to ${phoneNumber}: ${smsResult ? 'SUCCESS' : 'FAILED'}`);
-          
+
           smsSuccess = whatsappResult || smsResult;
         } catch (error) {
           console.error(`Emergency alert error for ${phoneNumber}:`, error);
         }
       }
-      
+
       // Send email if email exists
       if (email) {
         try {
@@ -2566,16 +2566,16 @@ Please respond immediately if you can assist.`;
           console.error(`Email error for ${email}:`, error);
         }
       }
-      
+
       // Mark message as sent to prevent duplicates (using Set instead of Map)
       const alertKey = `${emergencyData.triggerType}_${Date.now()}_${phoneNumber || email}`;
       sentMessages.add(alertKey);
-      
+
       // Clean up old entries after 1 hour
       setTimeout(() => {
         sentMessages.delete(alertKey);
       }, 3600000);
-      
+
       const success = smsSuccess || whatsappSuccess || emailSuccess;
       res.json({
         success,
@@ -2584,7 +2584,7 @@ Please respond immediately if you can assist.`;
         emailSuccess,
         message: success ? 'Emergency alert sent successfully' : 'Failed to send emergency alert'
       });
-      
+
     } catch (error) {
       console.error('Emergency alert error:', error);
       res.status(500).json({ message: 'Failed to send emergency alert' });
@@ -2663,7 +2663,7 @@ Please respond immediately if you can assist.`;
     try {
       const streamParam = req.params.streamId;
       let stream;
-      
+
       // Handle both numeric IDs and stream identifiers
       if (streamParam.startsWith('stream_')) {
         // For generated stream IDs, find by shareLink containing the streamId
@@ -2676,7 +2676,7 @@ Please respond immediately if you can assist.`;
           stream = await storage.getLiveStreamById(streamId);
         }
       }
-      
+
       if (!stream) {
         return res.status(404).json({ message: 'Stream not found' });
       }
@@ -2710,11 +2710,11 @@ Please respond immediately if you can assist.`;
       // Create recordings directory if it doesn't exist
       const recordingsDir = path.join(process.cwd(), 'server', 'emergency-recordings');
       const alertDir = path.join(recordingsDir, `emergency_${alertId}`);
-      
+
       if (!fs.existsSync(recordingsDir)) {
         fs.mkdirSync(recordingsDir, { recursive: true });
       }
-      
+
       if (!fs.existsSync(alertDir)) {
         fs.mkdirSync(alertDir, { recursive: true });
       }
@@ -2809,7 +2809,7 @@ Please respond immediately if you can assist.`;
         shareLink: shareableLink,
         isActive: true
       });
-      
+
       // If emergency mode, create emergency alert in database
       let emergencyAlertId: number | null = null;
       if (isEmergency && alertId) {
@@ -2840,9 +2840,9 @@ Please respond immediately if you can assist.`;
       if (isEmergency && emergencyAlertId) {
         console.log(`Emergency stream linked to alert ID ${emergencyAlertId}`);
       }
-      
+
       // Emergency contacts already notified by main emergency alert system - no duplicate messaging
-      
+
       const responseShareableLink = emergencyAlertId
         ? `${req.protocol}://${req.get('host')}/watch/emergency_${emergencyAlertId}`
         : stream.shareLink;
@@ -2855,7 +2855,7 @@ Please respond immediately if you can assist.`;
         viewerCount: 0,
         message: isEmergency ? 'Emergency stream started' : 'Live stream started successfully'
       });
-      
+
     } catch (error) {
       console.error('Live stream start error:', error);
       res.status(500).json({ message: 'Failed to start live stream' });
@@ -2865,20 +2865,20 @@ Please respond immediately if you can assist.`;
   app.post('/api/live-stream/end', async (req, res) => {
     try {
       const { streamUrl } = req.body;
-      
+
       // Find and end the stream
       const streams: LiveStream[] = await storage.getLiveStreams('demo-user');
       const activeStream = streams.find((s: LiveStream) => s.streamUrl === streamUrl && s.isActive);
-      
+
       if (activeStream) {
         await storage.endLiveStream(activeStream.id);
       }
-      
+
       res.json({
         success: true,
         message: 'Live stream ended successfully'
       });
-      
+
     } catch (error) {
       console.error('Live stream end error:', error);
       res.status(500).json({ message: 'Failed to end live stream' });
@@ -2889,11 +2889,11 @@ Please respond immediately if you can assist.`;
   app.post("/api/family/generate-qr", async (req, res) => {
     try {
       const childUserId = 'demo-user'; // Use demo user for now
-      
+
       // Generate unique invite code
       const inviteCode = `SK${Date.now()}${Math.random().toString(36).substr(2, 9)}`.toUpperCase();
       const inviteExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      
+
       // Create family connection entry
       const connection = await db.insert(familyConnections).values({
         childUserId,
@@ -2908,7 +2908,7 @@ Please respond immediately if you can assist.`;
           liveStreaming: true
         }
       }).returning();
-      
+
       res.json({
         qrCode: inviteCode,
         expiresAt: inviteExpiry,
@@ -2923,7 +2923,7 @@ Please respond immediately if you can assist.`;
   app.get("/api/family/connections", async (req, res) => {
     try {
       const userId = 'demo-user';
-      
+
       const connections = await db
         .select()
         .from(familyConnections)
@@ -2931,7 +2931,7 @@ Please respond immediately if you can assist.`;
           eq(familyConnections.childUserId, userId),
           eq(familyConnections.parentUserId, userId)
         ));
-      
+
       res.json(connections);
     } catch (error) {
       console.error("Error fetching family connections:", error);
@@ -2943,7 +2943,7 @@ Please respond immediately if you can assist.`;
     try {
       const parentUserId = req.user.claims.sub;
       const { inviteCode } = req.body;
-      
+
       // Find pending connection with this invite code
       const [connection] = await db
         .select()
@@ -2952,16 +2952,16 @@ Please respond immediately if you can assist.`;
           eq(familyConnections.inviteCode, inviteCode),
           eq(familyConnections.status, 'pending')
         ));
-      
+
       if (!connection) {
         return res.status(404).json({ message: "Invalid or expired QR code" });
       }
-      
+
       // Check if invite is expired
       if (new Date() > new Date(connection.inviteExpiry!)) {
         return res.status(400).json({ message: "QR code has expired" });
       }
-      
+
       // Update connection with parent info
       const updatedConnection = await db
         .update(familyConnections)
@@ -2972,10 +2972,10 @@ Please respond immediately if you can assist.`;
         })
         .where(eq(familyConnections.id, connection.id))
         .returning();
-      
+
       // Get child user info
       const childUser = await storage.getUser(connection.childUserId);
-      
+
       res.json({
         connection: updatedConnection[0],
         childInfo: {
@@ -2992,19 +2992,19 @@ Please respond immediately if you can assist.`;
   app.post('/api/emergency/share-stream', async (req, res) => {
     try {
       const { shareableLink, message } = req.body;
-      
+
       // Get emergency contacts
       const contacts: EmergencyContact[] = await storage.getEmergencyContacts('demo-user');
-      
+
       if (contacts.length === 0) {
         return res.status(400).json({ message: 'No emergency contacts configured' });
       }
-      
+
       // Send stream link to all contacts
       const alertPromises = contacts.map(async (contact: EmergencyContact) => {
         let smsSuccess = false;
         let emailSuccess = false;
-        
+
         if (contact.phoneNumber) {
           try {
             smsSuccess = await sendWhatsAppEmergency(contact.phoneNumber, message);
@@ -3013,7 +3013,7 @@ Please respond immediately if you can assist.`;
             console.error(`Stream share WhatsApp error for ${contact.name}:`, error);
           }
         }
-        
+
         if (contact.email) {
           try {
             emailSuccess = await sendEmailAlert(contact.email, message);
@@ -3022,20 +3022,20 @@ Please respond immediately if you can assist.`;
             console.error(`Stream share Email error for ${contact.name}:`, error);
           }
         }
-        
+
         return { contact: contact.name, smsSuccess, emailSuccess };
       });
-      
+
       const results = await Promise.allSettled(alertPromises);
       const successCount = results.filter((result: PromiseSettledResult<unknown>) => result.status === 'fulfilled').length;
-      
+
       res.json({
         success: successCount > 0,
         alertsSent: successCount,
         totalContacts: contacts.length,
         message: `Stream link shared with ${successCount}/${contacts.length} contacts`
       });
-      
+
     } catch (error) {
       console.error('Stream share error:', error);
       res.status(500).json({ message: 'Failed to share stream link' });
@@ -3046,23 +3046,23 @@ Please respond immediately if you can assist.`;
   app.post('/api/emergency/save-recording', async (req, res) => {
     try {
       const { emergencyAlertId } = req.body;
-      
+
       // In a real implementation, you would save the video file
       // For now, just acknowledge the recording was received
       console.log(`Emergency recording received for alert ${emergencyAlertId}`);
-      
+
       // Update emergency alert with recording info
       if (emergencyAlertId) {
         await storage.updateEmergencyAlert(parseInt(emergencyAlertId), {
           videoRecordingUrl: `/recordings/emergency_${emergencyAlertId}_${Date.now()}.webm`
         });
       }
-      
+
       res.json({
         success: true,
         message: 'Emergency recording saved successfully'
       });
-      
+
     } catch (error) {
       console.error('Save recording error:', error);
       res.status(500).json({ message: 'Failed to save emergency recording' });

@@ -45,7 +45,7 @@ import {
   type FamilyConnection,
   type InsertFamilyConnection,
   type AlertHistory as AlertHistoryRecord,
-} from "@shared/schema";
+} from "./db/schema";
 
 type AlertHistoryEntry = {
   id: number;
@@ -89,7 +89,7 @@ export interface IStorage {
   // Community alerts operations
   getCommunityAlerts(latitude: number, longitude: number, radius: number): Promise<CommunityAlert[]>;
   createCommunityAlert(alert: InsertCommunityAlert): Promise<CommunityAlert>;
-  
+
   // Safe zones operations
   getSafeZones(userId: string): Promise<SafeZone[]>;
   createSafeZone(zone: InsertSafeZone): Promise<SafeZone>;
@@ -159,29 +159,29 @@ export class DatabaseStorage implements IStorage {
   async upsertUser(userData: UpsertUser): Promise<User> {
     // First check if user exists by ID
     const existingUserById = await this.getUser(userData.id);
-    
+
     if (existingUserById) {
       // User exists by ID, update their data without changing ID
       const { id: _id, ...updateData } = userData;
-      
+
       const updated = await this.updateUser(userData.id, updateData);
       if (!updated) {
         throw new Error('Failed to update user');
       }
       return updated;
     }
-    
+
     // Check if user exists by email (for email-based lookup)
     if (userData.email) {
       const [existingUserByEmail] = await db
         .select()
         .from(users)
         .where(eq(users.email, userData.email));
-      
+
       if (existingUserByEmail) {
         // User exists with this email, update them without changing ID
         const { id: _id, ...updateData } = userData;
-        
+
         const updated = await this.updateUser(existingUserByEmail.id, updateData);
         if (!updated) {
           throw new Error('Failed to update user');
@@ -189,7 +189,7 @@ export class DatabaseStorage implements IStorage {
         return updated;
       }
     }
-    
+
     // User doesn't exist, insert new user
     const [user] = await db
       .insert(users)
@@ -490,8 +490,8 @@ export class DatabaseStorage implements IStorage {
   async connectDevice(id: number): Promise<boolean> {
     const [device] = await db
       .update(iotDevices)
-      .set({ 
-        isConnected: true, 
+      .set({
+        isConnected: true,
         connectionStatus: 'connected',
         lastConnected: new Date(),
         updatedAt: new Date()
@@ -504,8 +504,8 @@ export class DatabaseStorage implements IStorage {
   async disconnectDevice(id: number): Promise<boolean> {
     const [device] = await db
       .update(iotDevices)
-      .set({ 
-        isConnected: false, 
+      .set({
+        isConnected: false,
         connectionStatus: 'disconnected',
         updatedAt: new Date()
       })
@@ -702,10 +702,10 @@ export class DatabaseStorage implements IStorage {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * 1000; // Distance in meters
   }
 }
@@ -753,7 +753,7 @@ class MemoryStorage implements IStorage {
     this.emergencyContactsMap.set('demo-user', []);
 
     this.emergencyAlertsMap.set('demo-user', []);
-    
+
     // Initialize default Sharanya connection
     this.familyConnectionsMap.set("demo-user", [{
       id: 1749306839701,
@@ -767,9 +767,9 @@ class MemoryStorage implements IStorage {
       acceptedAt: new Date(),
       createdAt: new Date()
     }]);
-    
+
     this.alertHistoryMap.set("demo-user", []);
-    
+
     // Load persistent data on initialization
     this.loadPersistentData();
   }
@@ -781,17 +781,17 @@ class MemoryStorage implements IStorage {
       const { fileURLToPath } = await import('url');
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const dataPath = path.join(__dirname, 'persistent-data.json');
-      
+
       if (fs.existsSync(dataPath)) {
         const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-        
+
         // Load family connections
         if (data.familyConnections) {
           for (const [userId, connections] of Object.entries(data.familyConnections)) {
             this.familyConnectionsMap.set(userId, connections as FamilyConnection[]);
           }
         }
-        
+
         // Load alert history
         if (data.alertHistory) {
           for (const [userId, history] of Object.entries(data.alertHistory)) {
@@ -805,28 +805,28 @@ class MemoryStorage implements IStorage {
             this.emergencyContactsMap.set(userId, contacts as EmergencyContact[]);
           }
         }
-        
+
         // Load community alerts
         if (data.communityAlerts && Array.isArray(data.communityAlerts)) {
           for (const alert of data.communityAlerts) {
             this.communityAlertsMap.set(alert.id, alert);
           }
         }
-        
+
         // Load emergency alerts
         if (data.emergencyAlerts) {
           for (const [userId, alerts] of Object.entries(data.emergencyAlerts)) {
             this.emergencyAlertsMap.set(userId, alerts as EmergencyAlert[]);
           }
         }
-        
+
         // Load destinations
         if (data.destinations) {
           for (const [userId, userDestinations] of Object.entries(data.destinations)) {
             this.destinationsMap.set(userId, userDestinations as Destination[]);
           }
         }
-        
+
         console.log('Persistent data loaded successfully from file');
       } else {
         this.initializeDefaultData();
@@ -850,7 +850,7 @@ class MemoryStorage implements IStorage {
       acceptedAt: new Date(),
       createdAt: new Date()
     };
-    
+
     this.familyConnectionsMap.set("demo-user", [defaultConnection]);
     this.alertHistoryMap.set("demo-user", []);
     this.savePersistentData();
@@ -864,7 +864,7 @@ class MemoryStorage implements IStorage {
       const { fileURLToPath } = await import('url');
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const dataPath = path.join(__dirname, 'persistent-data.json');
-      
+
       const data = {
         familyConnections: Object.fromEntries(this.familyConnectionsMap),
         alertHistory: Object.fromEntries(this.alertHistoryMap),
@@ -874,7 +874,7 @@ class MemoryStorage implements IStorage {
         destinations: Object.fromEntries(this.destinationsMap),
         timestamp: new Date().toISOString()
       };
-      
+
       fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
     } catch (error) {
       console.error('Failed to save persistent data:', error);
@@ -939,18 +939,18 @@ class MemoryStorage implements IStorage {
 
   async createEmergencyAlert(alert: InsertEmergencyAlert): Promise<EmergencyAlert> {
     const alerts = this.emergencyAlertsMap.get(alert.userId) || [];
-    const newAlert = { 
-      ...alert, 
-      id: Date.now(), 
-      createdAt: new Date(), 
-      isResolved: false 
+    const newAlert = {
+      ...alert,
+      id: Date.now(),
+      createdAt: new Date(),
+      isResolved: false
     } as EmergencyAlert;
     alerts.push(newAlert);
     this.emergencyAlertsMap.set(alert.userId, alerts);
-    
+
     // Save to persistent storage immediately to prevent data loss on restart
     await this.savePersistentData();
-    
+
     return newAlert;
   }
 
@@ -971,10 +971,10 @@ class MemoryStorage implements IStorage {
       const alertIndex = alerts.findIndex(a => a.id === id);
       if (alertIndex >= 0) {
         alerts[alertIndex] = { ...alerts[alertIndex], ...updates };
-        
+
         // Save to persistent storage immediately to prevent data loss on restart
         await this.savePersistentData();
-        
+
         return alerts[alertIndex];
       }
     }
@@ -1097,7 +1097,7 @@ class MemoryStorage implements IStorage {
     }
     return false;
   }
-  async getHomeLocation(userId: string): Promise<HomeLocation | undefined> { 
+  async getHomeLocation(userId: string): Promise<HomeLocation | undefined> {
     return this.homeLocationsMap.get(userId);
   }
   async setHomeLocation(homeLocation: InsertHomeLocation): Promise<HomeLocation> {
@@ -1139,11 +1139,11 @@ class MemoryStorage implements IStorage {
   async verifyOtp(identifier: string, type: string, otp: string): Promise<boolean> {
     const key = `${identifier}-${type}`;
     const storedOtp = this.otpMap.get(key);
-    
+
     if (!storedOtp || storedOtp.otp !== otp || new Date() > storedOtp.expiresAt) {
       return false;
     }
-    
+
     this.otpMap.delete(key);
     return true;
   }
@@ -1171,7 +1171,7 @@ class MemoryStorage implements IStorage {
       updatedAt: new Date(),
       lastConnected: null
     } as IotDevice;
-    
+
     devices.push(newDevice);
     this.iotDevicesMap.set(device.userId, devices);
     this.savePersistentData();
@@ -1239,7 +1239,7 @@ class MemoryStorage implements IStorage {
       timestamp: new Date(),
       createdAt: new Date()
     } as HealthMetric;
-    
+
     metrics.unshift(newMetric); // Add to beginning for latest first
     this.healthMetricsMap.set(metric.userId, metrics);
     this.savePersistentData();
@@ -1264,7 +1264,7 @@ class MemoryStorage implements IStorage {
       analysisTimestamp: new Date(),
       createdAt: new Date()
     } as StressAnalysis;
-    
+
     analyses.unshift(newAnalysis);
     this.stressAnalysisMap.set(analysis.userId, analyses);
     this.savePersistentData();
@@ -1288,7 +1288,7 @@ class MemoryStorage implements IStorage {
       timestamp: new Date(),
       createdAt: new Date()
     } as IotEmergencyTrigger;
-    
+
     triggers.push(newTrigger);
     this.iotEmergencyTriggersMap.set(trigger.userId, triggers);
     this.savePersistentData();
@@ -1404,7 +1404,7 @@ class MemoryStorage implements IStorage {
   async getChildProfile(childUserId: string): Promise<any> {
     // Load persisted data from file
     await this.loadPersistentData();
-    
+
     try {
       const fs = require('fs');
       const data = JSON.parse(fs.readFileSync(this.persistentDataPath, 'utf8'));
@@ -1419,7 +1419,7 @@ class MemoryStorage implements IStorage {
     return this.alertHistoryMap.get(userId) || [];
   }
 
-  async getFamilyConnections(userId: string): Promise<FamilyConnection[]> { 
+  async getFamilyConnections(userId: string): Promise<FamilyConnection[]> {
     // Restore from persistent global storage if available
     if ((global as any).persistedConnections) {
       const restored = (global as any).persistedConnections[userId];
@@ -1427,9 +1427,9 @@ class MemoryStorage implements IStorage {
         this.familyConnectionsMap.set(userId, restored);
       }
     }
-    
+
     let connections = this.familyConnectionsMap.get(userId) || [];
-    
+
     // Always ensure Sharanya connection exists for demo
     const defaultConnection = {
       id: 1749306839701,
@@ -1443,18 +1443,18 @@ class MemoryStorage implements IStorage {
       acceptedAt: new Date(),
       createdAt: new Date()
     };
-    
+
     const hasDefaultConnection = connections.some(c => c.childUserId === "sharanya-child");
     if (!hasDefaultConnection) {
       connections.unshift(defaultConnection);
       this.familyConnectionsMap.set(userId, connections);
       this.persistConnections();
     }
-    
-    return connections; 
+
+    return connections;
   }
 
-  async createFamilyConnection(connection: InsertFamilyConnection): Promise<FamilyConnection> { 
+  async createFamilyConnection(connection: InsertFamilyConnection): Promise<FamilyConnection> {
     const newConnection: FamilyConnection = {
       id: Date.now(),
       parentUserId: connection.parentUserId,
@@ -1484,7 +1484,7 @@ class MemoryStorage implements IStorage {
     return newConnection;
   }
 
-  async updateFamilyConnection(id: number, updates: Partial<InsertFamilyConnection>): Promise<FamilyConnection | undefined> { 
+  async updateFamilyConnection(id: number, updates: Partial<InsertFamilyConnection>): Promise<FamilyConnection | undefined> {
     for (const [userId, connections] of this.familyConnectionsMap) {
       const connectionIndex = connections.findIndex(c => c.id === id);
       if (connectionIndex >= 0) {
@@ -1495,15 +1495,15 @@ class MemoryStorage implements IStorage {
     return undefined;
   }
 
-  async getFamilyConnectionByInviteCode(inviteCode: string): Promise<FamilyConnection | undefined> { 
+  async getFamilyConnectionByInviteCode(inviteCode: string): Promise<FamilyConnection | undefined> {
     return this.familyConnectionsByCode.get(inviteCode);
   }
 
-  async getConnectedChildren(parentUserId: string): Promise<FamilyConnection[]> { 
+  async getConnectedChildren(parentUserId: string): Promise<FamilyConnection[]> {
     return this.familyConnectionsMap.get(parentUserId) || [];
   }
 
-  async getConnectedParents(childUserId: string): Promise<FamilyConnection[]> { 
+  async getConnectedParents(childUserId: string): Promise<FamilyConnection[]> {
     const allConnections: FamilyConnection[] = [];
     for (const connections of this.familyConnectionsMap.values()) {
       allConnections.push(...connections.filter(c => c.childUserId === childUserId));
@@ -1533,7 +1533,7 @@ class MemoryStorage implements IStorage {
       reportedBy: alert.reportedBy || 'anonymous',
       createdAt: new Date()
     };
-    
+
     this.communityAlertsMap.set(newAlert.id, newAlert);
     await this.savePersistentData(); // Save to persistent storage
     return newAlert;
@@ -1543,10 +1543,10 @@ class MemoryStorage implements IStorage {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * 1000; // Distance in meters
   }
 }
@@ -1561,7 +1561,7 @@ class SmartStorage implements IStorage {
     if (!this.useDatabase) {
       throw new Error('Database disabled');
     }
-    
+
     try {
       return await operation();
     } catch (error: any) {

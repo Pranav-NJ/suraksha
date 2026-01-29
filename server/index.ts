@@ -10,9 +10,7 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://sakhi-suraksha-web.onrender.com']
-    : ['http://localhost:3000', 'http://localhost:5173'],
+  origin: true, // Allow all origins in production for simplicity, or we can restrict it later
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
@@ -127,8 +125,8 @@ app.use((req, res, next) => {
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV
