@@ -2751,7 +2751,7 @@ Please respond immediately if you can assist.`;
   // Stream watching page route
   app.get('/watch/:streamId', (req, res) => {
     // Serve the main React app - it will handle the routing
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/public/index.html'));
   });
 
   // Permanent alert history and persistent connections API endpoints
@@ -2789,12 +2789,12 @@ Please respond immediately if you can assist.`;
 
   app.get('/emergency/:alertId', (req, res) => {
     // Serve the main React app - it will handle the routing  
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/public/index.html'));
   });
 
   app.get('/emergency-stream/:streamId', (req, res) => {
     // Serve the main React app for emergency stream viewing
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/public/index.html'));
   });
 
   // Live streaming endpoints
@@ -3129,6 +3129,33 @@ Please respond immediately if you can assist.`;
   }, 5 * 60 * 1000); // Every 5 minutes
 
 
+
+  // Client-side routes fallback (ensure these return index.html for direct visits)
+  const clientRoutes = [
+    '/',
+    '/parent-dashboard',
+    '/emergency-alerts',
+    '/emergency-watch/*',
+    '/emergency-stream/*',
+    '/watch/*',
+    '/stream/*',
+    '/map',
+    '/contacts',
+    '/settings',
+    '/destinations',
+    '/iot-devices',
+    '/login',
+    '/profile-setup'
+  ];
+
+  app.get(clientRoutes, (req, res) => {
+    const indexPath = path.join(__dirname, '../dist/public/index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Application index file not found. Please ensure the build is complete.');
+    }
+  });
 
   return httpServer;
 }
