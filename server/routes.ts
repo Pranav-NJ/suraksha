@@ -41,6 +41,7 @@ interface CustomRequest extends Request {
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+
   // Health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -3127,6 +3128,7 @@ Please respond immediately if you can assist.`;
       console.error('OTP cleanup error:', error);
     }
   }, 5 * 60 * 1000); // Every 5 minutes
+
 
 
 
